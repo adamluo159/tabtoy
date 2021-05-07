@@ -1,9 +1,9 @@
 package compiler
 
 import (
-	"github.com/davyxu/tabtoy/v3/helper"
-	"github.com/davyxu/tabtoy/v3/model"
-	"github.com/davyxu/tabtoy/v3/report"
+	"github.com/adamluo159/tabtoy/v3/helper"
+	"github.com/adamluo159/tabtoy/v3/model"
+	"github.com/adamluo159/tabtoy/v3/report"
 )
 
 func LoadTypeTable(typeTab *model.TypeTable, indexGetter helper.FileGetter, fileName string) error {

@@ -1,7 +1,7 @@
 package model
 
 import (
-	"github.com/davyxu/tabtoy/v3/helper"
+	"github.com/adamluo159/tabtoy/v3/helper"
 )
 
 type Globals struct {
@@ -19,7 +19,7 @@ type Globals struct {
 
 	Datas DataTableList // 输出的字符串格式的数据表
 
-	GenBinary bool
+	GenBinary  bool
 	TagActions []TagAction // 用tag选中目标, 做action
 
 	ParaLoading bool

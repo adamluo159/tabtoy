@@ -2,7 +2,7 @@
 
 export GOPROXY=https://goproxy.cn,direct
 
-go build -v -o ./tabtoy github.com/davyxu/tabtoy
+go build -v -o ./tabtoy github.com/adamluo159/tabtoy
 
 ./tabtoy -mode=v3 \
 -index=Index.xlsx \

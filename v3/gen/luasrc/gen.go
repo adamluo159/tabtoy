@@ -2,9 +2,9 @@ package luasrc
 
 import (
 	"fmt"
+	"github.com/adamluo159/tabtoy/v3/gen"
+	"github.com/adamluo159/tabtoy/v3/model"
 	"github.com/davyxu/protoplus/codegen"
-	"github.com/davyxu/tabtoy/v3/gen"
-	"github.com/davyxu/tabtoy/v3/model"
 	"io/ioutil"
 )
 

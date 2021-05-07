@@ -1,5 +1,5 @@
 {
-	"@Tool": "github.com/davyxu/tabtoy",
+	"@Tool": "github.com/adamluo159/tabtoy",
 	"@Version": "3.0.0",	
 	"SampleDefine":[ 
 		{ "ID": 100, "Name": "黑猫警长", "IconID": 0, "NumericalRate": 0.6, "ItemID": 0, "BuffID": [0,10], "Type": 0, "SkillID": [4,6,7] },

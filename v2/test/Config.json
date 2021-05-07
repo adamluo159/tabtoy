@@ -1,5 +1,5 @@
 {
-	"Tool": "github.com/davyxu/tabtoy",
+	"Tool": "github.com/adamluo159/tabtoy",
 	"Version": "2.8.10",
 	"UnitTest":[
 		{ "FloatNumber": 3.14159, "str": "card\\player_slat_016", "HPByLevel":[ 0.1, 0.2 ] },

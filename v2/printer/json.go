@@ -3,9 +3,9 @@ package printer
 import (
 	"strconv"
 
-	"github.com/davyxu/tabtoy/util"
-	"github.com/davyxu/tabtoy/v2/i18n"
-	"github.com/davyxu/tabtoy/v2/model"
+	"github.com/adamluo159/tabtoy/util"
+	"github.com/adamluo159/tabtoy/v2/i18n"
+	"github.com/adamluo159/tabtoy/v2/model"
 )
 
 func valueWrapperJson(t model.FieldType, node *model.Node) string {
@@ -28,7 +28,7 @@ func (self *jsonPrinter) Run(g *Globals) *Stream {
 	bf := NewStream()
 	bf.Printf("{\n")
 
-	bf.Printf("	\"Tool\": \"github.com/davyxu/tabtoy\",\n")
+	bf.Printf("	\"Tool\": \"github.com/adamluo159/tabtoy\",\n")
 	bf.Printf("	\"Version\": \"%s\",\n", g.Version)
 
 	for tabIndex, tab := range g.Tables {

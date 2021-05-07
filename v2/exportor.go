@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/davyxu/tabtoy/v2/i18n"
-	"github.com/davyxu/tabtoy/v2/model"
-	"github.com/davyxu/tabtoy/v2/printer"
+	"github.com/adamluo159/tabtoy/v2/i18n"
+	"github.com/adamluo159/tabtoy/v2/model"
+	"github.com/adamluo159/tabtoy/v2/printer"
 )
 
 func Run(g *printer.Globals) bool {

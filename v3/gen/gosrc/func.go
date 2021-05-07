@@ -2,7 +2,7 @@ package gosrc
 
 import (
 	"fmt"
-	"github.com/davyxu/tabtoy/v3/model"
+	"github.com/adamluo159/tabtoy/v3/model"
 	"strings"
 	"text/template"
 )

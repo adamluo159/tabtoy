@@ -1,8 +1,8 @@
 package v2
 
 import (
-	"github.com/davyxu/tabtoy/v2/i18n"
-	"github.com/davyxu/tabtoy/v2/printer"
+	"github.com/adamluo159/tabtoy/v2/i18n"
+	"github.com/adamluo159/tabtoy/v2/printer"
 	"os"
 	"path/filepath"
 	"strings"

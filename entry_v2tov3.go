@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"github.com/davyxu/tabtoy/v2tov3"
-	"github.com/davyxu/tabtoy/v2tov3/model"
-	"github.com/davyxu/tabtoy/v3/helper"
+	"github.com/adamluo159/tabtoy/v2tov3"
+	"github.com/adamluo159/tabtoy/v2tov3/model"
+	"github.com/adamluo159/tabtoy/v3/helper"
 	"os"
 )
 

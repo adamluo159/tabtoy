@@ -2,8 +2,8 @@ package javasrc
 
 import (
 	"fmt"
-	"github.com/davyxu/tabtoy/util"
-	"github.com/davyxu/tabtoy/v3/model"
+	"github.com/adamluo159/tabtoy/util"
+	"github.com/adamluo159/tabtoy/v3/model"
 	"text/template"
 )
 

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/davyxu/tabtoy/util"
-	"github.com/davyxu/tabtoy/v2/i18n"
-	"github.com/davyxu/tabtoy/v2/model"
+	"github.com/adamluo159/tabtoy/util"
+	"github.com/adamluo159/tabtoy/v2/i18n"
+	"github.com/adamluo159/tabtoy/v2/model"
 )
 
 /*

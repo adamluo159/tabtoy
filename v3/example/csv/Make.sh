@@ -3,7 +3,7 @@
 # 默认设置代理, 国内专用
 export GOPROXY=https://goproxy.io
 
-go build -v -o ./tabtoy github.com/davyxu/tabtoy
+go build -v -o ./tabtoy github.com/adamluo159/tabtoy
 
 ./tabtoy -mode=v3 \
 -index=Index.csv \

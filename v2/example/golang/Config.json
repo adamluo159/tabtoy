@@ -1,5 +1,5 @@
 {
-	"Tool": "github.com/davyxu/tabtoy",
+	"Tool": "github.com/adamluo159/tabtoy",
 	"Version": "2.9.0",
 	"Sample":[
 		{ "ID": 100, "Name": "黑猫警长", "NumericalRate": 0.6, "ItemID": 100, "BuffID":[ 10 ], "Pos": { "X": 100, "Y": 89 }, "Type": 0, "SkillID":[ 4, 6, 7 ], "AttackParam": { "Value": 1 }, "SingleStruct": { "HP": 100, "AttackRate": 1.2 }, "StrStruct":[ { "HP": 3, "ExType": 0 }, { "HP": 10, "ExType": 1 } ] },

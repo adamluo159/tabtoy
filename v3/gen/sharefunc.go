@@ -1,9 +1,9 @@
 package gen
 
 import (
+	"github.com/adamluo159/tabtoy/util"
+	"github.com/adamluo159/tabtoy/v3/model"
 	"github.com/ahmetb/go-linq"
-	"github.com/davyxu/tabtoy/util"
-	"github.com/davyxu/tabtoy/v3/model"
 	"text/template"
 )
 

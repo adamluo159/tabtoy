@@ -2,7 +2,7 @@ package bindata
 
 import (
 	"fmt"
-	"github.com/davyxu/tabtoy/v3/model"
+	"github.com/adamluo159/tabtoy/v3/model"
 	"io/ioutil"
 )
 

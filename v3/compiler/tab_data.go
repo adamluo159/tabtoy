@@ -1,8 +1,8 @@
 package compiler
 
 import (
-	"github.com/davyxu/tabtoy/v3/helper"
-	"github.com/davyxu/tabtoy/v3/model"
+	"github.com/adamluo159/tabtoy/v3/helper"
+	"github.com/adamluo159/tabtoy/v3/model"
 	"github.com/pkg/errors"
 	"strings"
 )

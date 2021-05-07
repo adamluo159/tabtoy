@@ -3,7 +3,7 @@ package filter
 import (
 	"sort"
 
-	"github.com/davyxu/tabtoy/v2/model"
+	"github.com/adamluo159/tabtoy/v2/model"
 )
 
 type structFieldResult struct {

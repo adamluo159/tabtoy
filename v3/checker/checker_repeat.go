@@ -1,8 +1,8 @@
 package checker
 
 import (
-	"github.com/davyxu/tabtoy/v3/model"
-	"github.com/davyxu/tabtoy/v3/report"
+	"github.com/adamluo159/tabtoy/v3/model"
+	"github.com/adamluo159/tabtoy/v3/report"
 )
 
 func checkRepeat(globals *model.Globals) {
