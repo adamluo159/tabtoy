@@ -71,10 +71,6 @@ func (self *DataSheet) exportStandType(file *File, dataModel *model.DataModel, d
 	fd.Name = fmt.Sprintf("%s%s", self.Name, standKey.Name)
 	file.LocalFD.Add(fd)
 	file.GlobalFD.Add(fd)
-	// if rawTypeName == reservedRowFieldTypeName {
-	// 	log.Errorf("%s '%s'", i18n.String(i18n.DataHeader_UseReservedTypeName), rawTypeName)
-	// 	return false
-	// }
 
 	for self.Row = DataSheetHeader_DataBegin; readingLine; self.Row++ {
 		// 整行都是空的
@@ -118,6 +114,7 @@ func (self *DataSheet) exportStandType(file *File, dataModel *model.DataModel, d
 		valueStr := self.GetCellData(self.Row, keyIdx)
 		v, err := strconv.Atoi(valueStr)
 		if err != nil {
+			log.Errorf("%s '%s'", i18n.String(i18n.DataHeader_UseReservedTypeName), valueStr)
 			return false
 		}
 		standFieldDef.EnumValue = int32(v)

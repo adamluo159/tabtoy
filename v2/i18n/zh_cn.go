@@ -32,6 +32,7 @@ func init() {
 		DataHeader_RepeatedFieldTypeNotSameInMultiColumn:      "[TT605] 数据头: 数组字段在多列中的类型不一致",
 		DataHeader_RepeatedFieldMetaNotSameInMultiColumn:      "[TT606] 数据头: 数组字段在多列中的特性不一致",
 		DataHeader_UseReservedTypeName:                        "[TT607] 数据头: 使用了保留的类型名 例如:表名+'Define'",
+		DataHeader_StandValueError:                            "[TT607] 数据头: StandValue 不是int32'",
 		DataHeader_NotMatch:                                   "[TT608] 数据头: 多个表单使用的数据头描述不一致",
 		DataHeader_FieldNotDefinedInMainTableInMultiTableMode: "[TT609] 数据头: 多表格导出时, 子表中的字段在母表中没有定义",
 		DataHeader_NotMatchInMultiTableMode:                   "[TT610] 数据头: 多表格导出时, 子表中的字段与母表定义不一致",

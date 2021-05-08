@@ -32,6 +32,7 @@ func init() {
 		DataHeader_RepeatedFieldTypeNotSameInMultiColumn:      "[TT605] DataHeader: Repeated field type not same in columns",
 		DataHeader_RepeatedFieldMetaNotSameInMultiColumn:      "[TT606] DataHeader: Repeated field meta not same in columns",
 		DataHeader_UseReservedTypeName:                        "[TT607] DataHeader: Use reserved type name, like TableName+'Define' ",
+		DataHeader_StandValueError:                            "[TT607] DataHeader: StandValue type not int32'",
 		DataHeader_NotMatch:                                   "[TT608] DataHeader: Multi sheet data header not match",
 		DataHeader_FieldNotDefinedInMainTableInMultiTableMode: "[TT609] DataHeader: Field not defined in main table, in multi table mode",
 		DataHeader_NotMatchInMultiTableMode:                   "[TT610] DataHeader: Sheet data header not match in multi table mode",

@@ -39,6 +39,7 @@ const (
 	DataHeader_NotMatch
 	DataHeader_FieldNotDefinedInMainTableInMultiTableMode
 	DataHeader_NotMatchInMultiTableMode
+	DataHeader_StandValueError
 	TypeSheet_PragmaParseFailed
 	TypeSheet_TableNameIsEmpty
 	TypeSheet_PackageIsEmpty
