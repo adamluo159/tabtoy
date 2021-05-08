@@ -123,15 +123,6 @@ func (self *DataSheet) exportStandType(file *File, dataModel *model.DataModel, d
 	}
 
 	return true
-
-	// 	// 遍历母表所有的列头字段 先不做子母表的处理
-	// 	if parentHeader != nil {
-
-	// 		// for c := 0; c < parentHeader.RawFieldCount(); c++ {
-	// 		// 	fieldDef := parentHeader.RawField(c)
-	// 		// }
-	// 	}
-	// }
 }
 
 // 导出以行数据延展的表格(普通表格)

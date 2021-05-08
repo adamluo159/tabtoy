@@ -1,6 +1,10 @@
 package v2
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/adamluo159/tabtoy/util"
 	"github.com/adamluo159/tabtoy/v2/i18n"
 	"github.com/adamluo159/tabtoy/v2/model"
@@ -128,6 +132,67 @@ func (self *TypeSheet) parseTable(root *typeModelRoot) bool {
 	}
 
 	return true
+}
+
+func (self *TypeSheet) ParseDataType(localFD *model.FileDescriptor, globalFD *model.FileDescriptor) bool {
+	var standKey, standName, standAlias *model.FieldDescriptor
+	var keyIdx, fieldIdx, aliaIdx int
+	for idx := 0; idx < self.Sheet.MaxCol; idx++ {
+		v := self.GetCellData(0, idx)
+		if strings.Contains(v, "StandKey") {
+			standKey = v
+			keyIdx = idx
+		} else if strings.Contains(v, "StandName") {
+			standName = v
+			fieldIdx = idx
+		} else if strings.Contains(v, "StandAlias") {
+			standAlias = v
+			fieldIdx = idx
+		}
+	}
+
+	// for idx, v := range len(self.Sheet.Rows) {
+	// 	if v.Meta.GetString("StandKey") != "" {
+	// 		standKey = v
+	// 		keyIdx = idx
+	// 	} else if v.Meta.GetString("StandName") != "" {
+	// 		standName = v
+	// 		fieldIdx = idx
+	// 	} else if v.Meta.GetString("StandAlias") != "" {
+	// 		standAlias = v
+	// 		fieldIdx = idx
+	// 	}
+	// }
+	if standKey == nil || standName == nil || standAlias == nil {
+		return true
+	}
+
+	fd := model.NewDescriptor()
+	fd.Kind = model.DescriptorKind_Enum
+	fd.Usage = model.DescriptorUsage_RowType
+	fd.Name = fmt.Sprintf("%s%s", self.Name, standKey.Name)
+	globalFD.Add(fd)
+
+	for self.Row = DataSheetHeader_DataBegin; readingLine; self.Row++ {
+		// 整行都是空的
+
+		keyFieldDef, _ := fieldDefGetter(keyIdx, dataHeader, parentHeader)
+		aliasFieldDef, _ := fieldDefGetter(aliaIdx, dataHeader, parentHeader)
+
+		standFieldDef := model.NewFieldDescriptor()
+		standFieldDef.Type = keyFieldDef.Type
+		standFieldDef.Comment = keyFieldDef.Comment
+		standFieldDef.Name = self.GetCellData(self.Row, fieldIdx)
+		valueStr := self.GetCellData(self.Row, keyIdx)
+		v, err := strconv.Atoi(valueStr)
+		if err != nil {
+			log.Errorf("%s '%s'", i18n.String(i18n.DataHeader_UseReservedTypeName), valueStr)
+			return false
+		}
+		standFieldDef.EnumValue = int32(v)
+		standName.Meta.SetString("Alias", aliasFieldDef.String())
+		fd.Add(standFieldDef)
+	}
 }
 
 // 解析所有的类型及数据

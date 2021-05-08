@@ -60,6 +60,8 @@ func (self *File) ExportLocalType(mainFile *File) bool {
 
 			sheetCount++
 
+		} else {
+
 		}
 	}
 

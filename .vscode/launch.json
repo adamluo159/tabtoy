@@ -15,7 +15,8 @@
                 "--json_out=./debug/Config.json",
                 "--go_out=./debug/table_gen.go",
                 "${workspaceFolder}/v2/example/Globals.xlsx",
-                "${workspaceFolder}/v2/example/Sample.xlsx"
+                "${workspaceFolder}/v2/example/Sample.xlsx",
+                "${workspaceFolder}/v2/example/AAA.xlsx"
                 
             ]
         }
