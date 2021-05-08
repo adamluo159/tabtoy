@@ -1,6 +1,8 @@
 package v2
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/adamluo159/tabtoy/util"
@@ -37,6 +39,102 @@ func (self *DataSheet) Export(file *File, dataModel *model.DataModel, dataHeader
 		return self.exportRowMajor(file, dataModel, dataHeader, parentHeader)
 	}
 
+}
+
+func (self *DataSheet) exportStandType(file *File, dataModel *model.DataModel, dataHeader, parentHeader *DataHeader) bool {
+	// 是否继续读行
+	var readingLine bool = true
+	var meetEmptyLine bool
+	var warningAfterEmptyLineDataOnce bool
+
+	var standKey, standName, standAlias *model.FieldDescriptor
+	var keyIdx, fieldIdx, aliaIdx int
+	for idx, v := range file.Header.headerFields {
+		if v.Meta.GetString("StandKey") != "" {
+			standKey = v
+			keyIdx = idx
+		} else if v.Meta.GetString("StandName") != "" {
+			standName = v
+			fieldIdx = idx
+		} else if v.Meta.GetString("StandAlias") != "" {
+			standAlias = v
+			fieldIdx = idx
+		}
+	}
+	if standKey == nil || standName == nil || standAlias == nil {
+		return true
+	}
+
+	fd := model.NewDescriptor()
+	fd.Kind = model.DescriptorKind_Enum
+	fd.Usage = model.DescriptorUsage_RowType
+	fd.Name = fmt.Sprintf("%s%s", self.Name, standKey.Name)
+	file.LocalFD.Add(fd)
+	file.GlobalFD.Add(fd)
+	// if rawTypeName == reservedRowFieldTypeName {
+	// 	log.Errorf("%s '%s'", i18n.String(i18n.DataHeader_UseReservedTypeName), rawTypeName)
+	// 	return false
+	// }
+
+	for self.Row = DataSheetHeader_DataBegin; readingLine; self.Row++ {
+		// 整行都是空的
+		if self.IsFullRowEmpty(self.Row, dataHeader.RawFieldCount()) {
+
+			// 再次碰空行, 表示确实是空的
+			if meetEmptyLine {
+				break
+
+			} else {
+				meetEmptyLine = true
+			}
+
+			continue
+
+		} else {
+
+			//已经碰过空行, 这里又碰到数据, 说明有人为隔出的空行, 做warning提醒, 防止数据没导出
+			if meetEmptyLine && !warningAfterEmptyLineDataOnce {
+				r, _ := self.GetRC()
+
+				log.Warnf("%s %s|%s(%s)", i18n.String(i18n.DataSheet_RowDataSplitedByEmptyLine), self.file.FileName, self.Name, util.R1C1ToA1(r, 1))
+
+				warningAfterEmptyLineDataOnce = true
+			}
+
+			// 曾经有过空行, 即便现在不是空行也没用, 结束
+			if meetEmptyLine {
+				break
+			}
+
+		}
+
+		keyFieldDef, _ := fieldDefGetter(keyIdx, dataHeader, parentHeader)
+		aliasFieldDef, _ := fieldDefGetter(aliaIdx, dataHeader, parentHeader)
+
+		standFieldDef := model.NewFieldDescriptor()
+		standFieldDef.Type = keyFieldDef.Type
+		standFieldDef.Comment = keyFieldDef.Comment
+		standFieldDef.Name = self.GetCellData(self.Row, fieldIdx)
+		valueStr := self.GetCellData(self.Row, keyIdx)
+		v, err := strconv.Atoi(valueStr)
+		if err != nil {
+			return false
+		}
+		standFieldDef.EnumValue = int32(v)
+		standName.Meta.SetString("Alias", aliasFieldDef.String())
+		fd.Add(standFieldDef)
+	}
+
+	return true
+
+	// 	// 遍历母表所有的列头字段 先不做子母表的处理
+	// 	if parentHeader != nil {
+
+	// 		// for c := 0; c < parentHeader.RawFieldCount(); c++ {
+	// 		// 	fieldDef := parentHeader.RawField(c)
+	// 		// }
+	// 	}
+	// }
 }
 
 // 导出以行数据延展的表格(普通表格)
@@ -96,7 +194,6 @@ func (self *DataSheet) exportRowMajor(file *File, dataModel *model.DataModel, da
 			}
 
 			op := self.processLine(fieldDef, line, dataHeader)
-
 			if op == lineOp_Continue {
 				continue
 			} else if op == lineOp_Break {
@@ -132,7 +229,7 @@ func (self *DataSheet) exportRowMajor(file *File, dataModel *model.DataModel, da
 
 	}
 
-	return true
+	return self.exportStandType(file, dataModel, dataHeader, parentHeader)
 }
 
 const (

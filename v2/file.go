@@ -1,8 +1,9 @@
 package v2
 
 import (
-	"github.com/adamluo159/tabtoy/util"
 	"strings"
+
+	"github.com/adamluo159/tabtoy/util"
 
 	"github.com/adamluo159/tabtoy/v2/i18n"
 	"github.com/adamluo159/tabtoy/v2/model"
