@@ -145,7 +145,8 @@ func (self *TypeSheet) ParseDataType(localFD *model.FileDescriptor, globalFD *mo
 
 	var keyIdx, nameIdx, aliasIdx int = -1, -1, -1
 	var keyName string
-	for idx := 0; idx < self.Sheet.MaxCol; idx++ {
+	maxCol := self.detectMaxTypeCol()
+	for idx := 0; idx < maxCol; idx++ {
 		v := self.GetCellData(DataSheetHeader_FieldMeta, idx)
 		if strings.Contains(v, "StandKey") {
 			keyIdx = idx
@@ -168,6 +169,10 @@ func (self *TypeSheet) ParseDataType(localFD *model.FileDescriptor, globalFD *mo
 	fd.Add(standDef)
 
 	for row := DataSheetHeader_DataBegin; row < self.Sheet.MaxRow; row++ {
+		if self.IsFullRowEmpty(row, maxCol) {
+			continue
+		}
+
 		standDef := model.NewFieldDescriptor()
 		valueStr := self.GetCellData(row, keyIdx)
 		v, err := strconv.Atoi(valueStr)
