@@ -217,7 +217,7 @@ func (self *DataSheet) exportRowMajor(file *File, dataModel *model.DataModel, da
 
 	}
 
-	return self.exportStandType(file, dataModel, dataHeader, parentHeader)
+	return true //self.exportStandType(file, dataModel, dataHeader, parentHeader)
 }
 
 const (

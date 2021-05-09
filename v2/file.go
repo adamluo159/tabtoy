@@ -61,7 +61,7 @@ func (self *File) ExportLocalType(mainFile *File) bool {
 			sheetCount++
 
 		} else {
-
+			newTypeSheet(NewSheet(self, rawSheet)).ParseDataType(self.LocalFD, self.GlobalFD)
 		}
 	}
 

@@ -1,9 +1,10 @@
 package printer
 
 import (
+	"strings"
+
 	"github.com/adamluo159/tabtoy/v2/i18n"
 	"github.com/adamluo159/tabtoy/v2/model"
-	"strings"
 )
 
 type TableIndex struct {
@@ -83,9 +84,36 @@ func (self *Globals) AddOutputType(name string, outfile string) {
 
 }
 
+var dataFiles = map[string]bool{"json": true}
+
+func (self *Globals) PrintDataFile() bool {
+	log.Infof("==========%s==========", i18n.String(i18n.Globals_OutputCombineData))
+	for _, p := range self.Printers {
+		if _, ok := dataFiles[p.name]; !ok {
+			continue
+		}
+		if !p.Start(self) {
+			return false
+		}
+	}
+	return true
+}
+
+func (self *Globals) PrintCodeFile() bool {
+	for _, p := range self.Printers {
+		if _, ok := dataFiles[p.name]; ok {
+			continue
+		}
+		if !p.Start(self) {
+			return false
+		}
+	}
+	return true
+}
+
 func (self *Globals) Print() bool {
 
-	log.Infof("==========%s==========", i18n.String(i18n.Globals_OutputCombineData))
+	//log.Infof("==========%s==========", i18n.String(i18n.Globals_OutputCombineData))
 
 	for _, p := range self.Printers {
 

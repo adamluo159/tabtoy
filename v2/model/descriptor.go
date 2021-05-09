@@ -19,9 +19,10 @@ const (
 )
 
 type Descriptor struct {
-	Name  string
-	Kind  DescriptorKind
-	Usage DescriptorUsage
+	Name     string
+	Kind     DescriptorKind
+	Usage    DescriptorUsage
+	NotPrint bool
 
 	FieldByName   map[string]*FieldDescriptor
 	FieldByNumber map[int32]*FieldDescriptor

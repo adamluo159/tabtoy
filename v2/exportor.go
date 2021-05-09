@@ -9,6 +9,54 @@ import (
 	"github.com/adamluo159/tabtoy/v2/printer"
 )
 
+func delNotPrintDef(cachedFile map[string]*File, g *printer.Globals) {
+	delDefs := make(map[string]*model.Descriptor)
+	for _, v := range cachedFile {
+		for idx, vv := range v.LocalFD.Descriptors {
+			if vv.NotPrint {
+				v.LocalFD.Descriptors = append(v.LocalFD.Descriptors[:idx], v.LocalFD.Descriptors[idx+1:]...)
+				delete(v.LocalFD.DescriptorByName, vv.Name)
+				delDefs[vv.Name] = vv
+			}
+		}
+	}
+	for idx, vv := range g.FileDescriptor.Descriptors {
+		if vv.NotPrint {
+			g.FileDescriptor.Descriptors = append(g.FileDescriptor.Descriptors[:idx], g.FileDescriptor.Descriptors[idx+1:]...)
+			delete(g.FileDescriptor.DescriptorByName, vv.Name)
+			delDefs[vv.Name] = vv
+		}
+	}
+	for _, v := range cachedFile {
+		for _, vv := range v.LocalFD.Descriptors {
+			for _, field := range vv.Fields {
+				if field.Complex == nil {
+					continue
+				}
+				_, ok := delDefs[field.Complex.Name]
+				if !ok {
+					continue
+				}
+				field.Type = model.FieldType_Int32
+				field.Complex = nil
+			}
+		}
+	}
+	for _, vv := range g.FileDescriptor.Descriptors {
+		for _, field := range vv.Fields {
+			if field.Complex == nil {
+				continue
+			}
+			_, ok := delDefs[field.Complex.Name]
+			if !ok {
+				continue
+			}
+			field.Type = model.FieldType_Int32
+			field.Complex = nil
+		}
+	}
+}
+
 func Run(g *printer.Globals) bool {
 
 	if !g.PreExport() {
@@ -116,7 +164,12 @@ func Run(g *printer.Globals) bool {
 		}
 
 	}
-
 	// 根据各种导出类型, 调用各导出器导出
-	return g.Print()
+	bPrint := g.PrintDataFile()
+	if !bPrint {
+		return false
+	}
+	delNotPrintDef(cachedFile, g)
+
+	return g.PrintCodeFile()
 }

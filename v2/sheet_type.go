@@ -128,71 +128,67 @@ func (self *TypeSheet) parseTable(root *typeModelRoot) bool {
 		if len(tm.colData) > 0 {
 			root.models = append(root.models, tm)
 		}
-
 	}
 
 	return true
 }
 
 func (self *TypeSheet) ParseDataType(localFD *model.FileDescriptor, globalFD *model.FileDescriptor) bool {
-	var standKey, standName, standAlias *model.FieldDescriptor
-	var keyIdx, fieldIdx, aliaIdx int
-	for idx := 0; idx < self.Sheet.MaxCol; idx++ {
-		v := self.GetCellData(0, idx)
-		if strings.Contains(v, "StandKey") {
-			standKey = v
-			keyIdx = idx
-		} else if strings.Contains(v, "StandName") {
-			standName = v
-			fieldIdx = idx
-		} else if strings.Contains(v, "StandAlias") {
-			standAlias = v
-			fieldIdx = idx
-		}
-	}
 
-	// for idx, v := range len(self.Sheet.Rows) {
-	// 	if v.Meta.GetString("StandKey") != "" {
-	// 		standKey = v
-	// 		keyIdx = idx
-	// 	} else if v.Meta.GetString("StandName") != "" {
-	// 		standName = v
-	// 		fieldIdx = idx
-	// 	} else if v.Meta.GetString("StandAlias") != "" {
-	// 		standAlias = v
-	// 		fieldIdx = idx
-	// 	}
-	// }
-	if standKey == nil || standName == nil || standAlias == nil {
+	if self.Sheet.MaxCol == 0 {
 		return true
 	}
 
 	fd := model.NewDescriptor()
 	fd.Kind = model.DescriptorKind_Enum
-	fd.Usage = model.DescriptorUsage_RowType
-	fd.Name = fmt.Sprintf("%s%s", self.Name, standKey.Name)
-	globalFD.Add(fd)
+	fd.Usage = model.DescriptorUsage_None
 
-	for self.Row = DataSheetHeader_DataBegin; readingLine; self.Row++ {
-		// 整行都是空的
+	var keyIdx, nameIdx, aliasIdx int = -1, -1, -1
+	var keyName string
+	for idx := 0; idx < self.Sheet.MaxCol; idx++ {
+		v := self.GetCellData(DataSheetHeader_FieldMeta, idx)
+		if strings.Contains(v, "StandKey") {
+			keyIdx = idx
+			keyName = self.GetCellData(DataSheetHeader_FieldName, idx)
+			fd.Name = fmt.Sprintf("%s%s", self.Name, keyName)
+		} else if strings.Contains(v, "StandName") {
+			nameIdx = idx
+		} else if strings.Contains(v, "StandAlias") {
+			aliasIdx = idx
+		}
+	}
+	if keyIdx < 0 || aliasIdx < 0 {
+		return true
+	}
+	fd.NotPrint = nameIdx < 0
+	standDef := model.NewFieldDescriptor()
+	standDef.EnumValue = int32(0)
+	standDef.Name = fd.Name + "None"
+	standDef.Meta.SetString("Alias", standDef.Name)
+	fd.Add(standDef)
 
-		keyFieldDef, _ := fieldDefGetter(keyIdx, dataHeader, parentHeader)
-		aliasFieldDef, _ := fieldDefGetter(aliaIdx, dataHeader, parentHeader)
-
-		standFieldDef := model.NewFieldDescriptor()
-		standFieldDef.Type = keyFieldDef.Type
-		standFieldDef.Comment = keyFieldDef.Comment
-		standFieldDef.Name = self.GetCellData(self.Row, fieldIdx)
-		valueStr := self.GetCellData(self.Row, keyIdx)
+	for row := DataSheetHeader_DataBegin; row < self.Sheet.MaxRow; row++ {
+		standDef := model.NewFieldDescriptor()
+		valueStr := self.GetCellData(row, keyIdx)
 		v, err := strconv.Atoi(valueStr)
 		if err != nil {
 			log.Errorf("%s '%s'", i18n.String(i18n.DataHeader_UseReservedTypeName), valueStr)
 			return false
 		}
-		standFieldDef.EnumValue = int32(v)
-		standName.Meta.SetString("Alias", aliasFieldDef.String())
-		fd.Add(standFieldDef)
+		standDef.EnumValue = int32(v)
+		standDef.Type = model.FieldType_Int32
+		alias := self.GetCellData(row, aliasIdx)
+		if fd.NotPrint {
+			standDef.Name = alias
+		} else {
+			standDef.Name = self.GetCellData(row, nameIdx)
+		}
+
+		standDef.Meta.SetString("Alias", alias)
+		fd.Add(standDef)
 	}
+	localFD.Add(fd)
+	return true
 }
 
 // 解析所有的类型及数据
