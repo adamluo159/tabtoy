@@ -24,6 +24,7 @@ type Globals struct {
 	GenCSSerailizeCode bool
 	PackageName        string
 	ModList            []string
+	FieldMark          string
 
 	Printers []*PrinterContext
 

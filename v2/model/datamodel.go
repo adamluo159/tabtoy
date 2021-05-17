@@ -51,7 +51,8 @@ func NewLineData() *LineData {
 
 // 对应table
 type DataModel struct {
-	Lines []*LineData
+	Lines     []*LineData
+	FieldMark string
 }
 
 func (self *DataModel) Add(data *LineData) {
@@ -61,6 +62,6 @@ func (self *DataModel) Add(data *LineData) {
 	self.Lines = append(self.Lines, data)
 }
 
-func NewDataModel() *DataModel {
-	return new(DataModel)
+func NewDataModel(fieldMark string) *DataModel {
+	return &DataModel{FieldMark: fieldMark}
 }

@@ -9,6 +9,42 @@ import (
 	"github.com/adamluo159/tabtoy/v2/printer"
 )
 
+func filterFields(cachedFile map[string]*File, g *printer.Globals) {
+	for _, v := range cachedFile {
+		for _, vv := range v.LocalFD.Descriptors {
+			for i := 0; i < len(vv.Fields); i++ {
+				field := vv.Fields[i]
+				field.Order = int32(i)
+				if field.Meta == nil || g.FieldMark == "" {
+					continue
+				}
+				mark := field.Meta.KVPair.GetString("Mark")
+				if mark == "" || mark == g.FieldMark {
+					continue
+				}
+				delete(vv.FieldByName, field.Name)
+				delete(vv.FieldByNumber, field.EnumValue)
+				vv.Fields = append(vv.Fields[:i], vv.Fields[i+1:]...)
+				i--
+			}
+		}
+	}
+	for _, vv := range g.FileDescriptor.Descriptors {
+		for i := 0; i < len(vv.Fields); i++ {
+			field := vv.Fields[i]
+			if field.Meta == nil || g.FieldMark == "" {
+				continue
+			}
+			mark := field.Meta.KVPair.GetString("Mark")
+			if mark == "" || mark == g.FieldMark {
+				continue
+			}
+			vv.Fields = append(vv.Fields[:i], vv.Fields[i+1:]...)
+			i--
+		}
+	}
+}
+
 func delNotPrintDef(cachedFile map[string]*File, g *printer.Globals) {
 	delDefs := make(map[string]*model.Descriptor)
 	for _, v := range cachedFile {
@@ -132,7 +168,7 @@ func Run(g *printer.Globals) bool {
 
 		log.Infoln(filepath.Base(file.FileName))
 
-		dataModel := model.NewDataModel()
+		dataModel := model.NewDataModel(g.FieldMark)
 
 		tab := model.NewTable()
 		tab.LocalFD = file.LocalFD
@@ -164,6 +200,8 @@ func Run(g *printer.Globals) bool {
 		}
 
 	}
+	filterFields(cachedFile, g)
+
 	// 根据各种导出类型, 调用各导出器导出
 	bPrint := g.PrintDataFile()
 	if !bPrint {

@@ -22,6 +22,9 @@ var (
 
 	// 输出日志语言
 	paramLanguage = flag.String("lan", "en_us", "set output language")
+
+	// 导出字段标志
+	paramFieldExport = flag.String("mark", "", "export marked field")
 )
 
 var (

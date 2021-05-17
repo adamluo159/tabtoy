@@ -88,7 +88,7 @@ func (self *DataSheet) exportRowMajor(file *File, dataModel *model.DataModel, da
 		// 遍历每一列
 		for self.Column = 0; self.Column < dataHeader.RawFieldCount(); self.Column++ {
 
-			fieldDef, ok := fieldDefGetter(self.Column, dataHeader, parentHeader)
+			fieldDef, ok := fieldDefGetter(self.Column, dataHeader, parentHeader, dataModel.FieldMark)
 
 			if !ok {
 				log.Errorf("%s %s|%s(%s)", i18n.String(i18n.DataHeader_FieldNotDefinedInMainTableInMultiTableMode), self.file.FileName, self.Name, util.R1C1ToA1(self.Row+1, self.Column+1))
@@ -175,11 +175,18 @@ func (self *DataSheet) processLine(fieldDef *model.FieldDescriptor, line *model.
 }
 
 // 多表合并时, 要从从表的字段名在主表的表头里做索引
-func fieldDefGetter(index int, dataHeader, parentHeader *DataHeader) (*model.FieldDescriptor, bool) {
+func fieldDefGetter(index int, dataHeader, parentHeader *DataHeader, markField string) (*model.FieldDescriptor, bool) {
 
 	fieldDef := dataHeader.RawField(index)
 	if fieldDef == nil {
 		return nil, true
+	}
+
+	if fieldDef.Meta != nil && markField != "" {
+		mark := fieldDef.Meta.KVPair.GetString("Mark")
+		if mark != "" && mark != markField {
+			return nil, true
+		}
 	}
 
 	if parentHeader != nil {

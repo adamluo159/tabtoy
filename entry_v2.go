@@ -2,11 +2,12 @@ package main
 
 import (
 	"flag"
+	"os"
+
 	"github.com/adamluo159/tabtoy/build"
-	"github.com/adamluo159/tabtoy/v2"
+	v2 "github.com/adamluo159/tabtoy/v2"
 	"github.com/adamluo159/tabtoy/v2/i18n"
 	"github.com/adamluo159/tabtoy/v2/printer"
-	"os"
 )
 
 // v2特有
@@ -42,6 +43,7 @@ func V2Entry() {
 	g.LuaTabHeader = *paramLuaTabHeader
 	g.GenCSSerailizeCode = *paramGenCSharpBinarySerializeCode
 	g.PackageName = *paramPackageName
+	g.FieldMark = *paramFieldExport
 
 	if *paramProtoOut != "" {
 		g.AddOutputType("proto", *paramProtoOut)
