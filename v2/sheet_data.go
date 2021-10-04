@@ -1,6 +1,9 @@
 package v2
 
 import (
+	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/adamluo159/tabtoy/util"
@@ -134,6 +137,50 @@ func (self *DataSheet) exportRowMajor(file *File, dataModel *model.DataModel, da
 	return true
 }
 
+func parseProp(value string, fd *model.FieldDescriptor) string {
+	if value == "" {
+		return value
+	}
+
+	if fd.Complex == nil || fd.Complex.Name != "Prop" {
+		return value
+	}
+	for _, v := range fd.Complex.Fields {
+		if v.Meta == nil || v.Meta.KVPair == nil {
+			return value
+		}
+		name := v.Meta.KVPair.GetString("Alias")
+		if strings.Contains(value, name) {
+			return value
+		}
+	}
+
+	f, ok := fd.Complex.FieldByName["ID"]
+	if !ok || f.Complex == nil {
+		return value
+	}
+
+	propAlias := make([]string, 0)
+	for _, field := range f.Complex.Fields {
+		aliasName := field.Meta.KVPair.GetString("Alias")
+		propAlias = append(propAlias, aliasName)
+	}
+	for _, v := range propAlias {
+		value = strings.Replace(value, v, "属性:"+v+" 值", -1)
+	}
+
+	a := regexp.MustCompile(`([1-9]\d*(\.\d*[1-9])?%)|(0\.\d*[1-9]%)`)
+	symbols := a.FindAllString(value, -1)
+	for _, v := range symbols {
+		fnum, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
+		value = strings.ReplaceAll(value, "值:"+v, fmt.Sprintf("百分比:%v", fnum/100))
+		if err != nil {
+			log.Errorf("parse float value:%s err:%v", v, err)
+		}
+	}
+	return value
+}
+
 const (
 	lineOp_none = iota
 	lineOp_Break
@@ -158,6 +205,8 @@ func (self *DataSheet) processLine(fieldDef *model.FieldDescriptor, line *model.
 	} else {
 		rawValue = self.GetCellData(self.Row, self.Column)
 	}
+
+	rawValue = parseProp(rawValue, fieldDef)
 
 	r, c := self.GetRC()
 

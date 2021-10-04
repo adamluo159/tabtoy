@@ -88,7 +88,6 @@ func newStructParser(value string) *structParser {
 }
 
 func parseStruct(fd *model.FieldDescriptor, value string, fileD *model.FileDescriptor, node *model.Node) bool {
-
 	p := newStructParser(value)
 
 	// 检查字段有没有重复

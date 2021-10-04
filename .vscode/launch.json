@@ -16,9 +16,13 @@
         "--go_out=${workspaceFolder}/debug/table_gen.go",
         "--proto_out=${workspaceFolder}/debug/pb.proto",
         "--mark=Client",
-        "${workspaceFolder}/v2/example/Globals.xlsx",
-        "${workspaceFolder}/v2/example/Sample.xlsx",
-        "${workspaceFolder}/v2/example/AAA.xlsx"
+        "${workspaceFolder}/v2/example/excel/global/global.xlsx",
+        "${workspaceFolder}/v2/example/excel/global/RangeType.xlsx",
+        "${workspaceFolder}/v2/example/excel/global/Skill.xlsx"
+
+        //"${workspaceFolder}/v2/example/Globals.xlsx",
+        //"${workspaceFolder}/v2/example/Sample.xlsx",
+        //"${workspaceFolder}/v2/example/AAA.xlsx"
       ]
     }
   ]
