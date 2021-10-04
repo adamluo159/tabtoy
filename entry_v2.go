@@ -44,6 +44,7 @@ func V2Entry() {
 	g.GenCSSerailizeCode = *paramGenCSharpBinarySerializeCode
 	g.PackageName = *paramPackageName
 	g.FieldMark = *paramFieldExport
+	g.TiledFileDir = *paramTiledDir
 
 	if *paramProtoOut != "" {
 		g.AddOutputType("proto", *paramProtoOut)

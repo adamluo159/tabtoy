@@ -47,6 +47,9 @@ func (self *jsonPrinter) Run(g *Globals) *Stream {
 		}
 
 	}
+	if g.TiledFileDir != "" {
+		WriteTiledData(g, bf, g.TiledFileDir)
+	}
 
 	bf.Printf("}")
 

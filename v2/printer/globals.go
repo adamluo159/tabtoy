@@ -25,6 +25,7 @@ type Globals struct {
 	PackageName        string
 	ModList            []string
 	FieldMark          string
+	TiledFileDir       string
 
 	Printers []*PrinterContext
 
