@@ -2,7 +2,6 @@ package v2
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -142,42 +141,44 @@ func parseProp(value string, fd *model.FieldDescriptor) string {
 		return value
 	}
 
+	old := value
 	if fd.Complex == nil || fd.Complex.Name != "Prop" {
 		return value
 	}
-	for _, v := range fd.Complex.Fields {
-		if v.Meta == nil || v.Meta.KVPair == nil {
-			return value
-		}
-		name := v.Meta.KVPair.GetString("Alias")
-		if strings.Contains(value, name) {
+	for _, v := range fd.Complex.Fields { //判断是原来的结构就不处理
+		if strings.Contains(value, v.Name) {
 			return value
 		}
 	}
 
-	f, ok := fd.Complex.FieldByName["ID"]
-	if !ok || f.Complex == nil {
-		return value
-	}
-
-	propAlias := make([]string, 0)
-	for _, field := range f.Complex.Fields {
-		aliasName := field.Meta.KVPair.GetString("Alias")
-		propAlias = append(propAlias, aliasName)
-	}
-	for _, v := range propAlias {
-		value = strings.Replace(value, v, "属性:"+v+" 值", -1)
-	}
-
-	a := regexp.MustCompile(`([1-9]\d*(\.\d*[1-9])?%)|(0\.\d*[1-9]%)`)
-	symbols := a.FindAllString(value, -1)
-	for _, v := range symbols {
-		fnum, err := strconv.ParseFloat(strings.Trim(v, "%"), 64)
-		value = strings.ReplaceAll(value, "值:"+v, fmt.Sprintf("百分比:%v", fnum/100))
-		if err != nil {
-			log.Errorf("parse float value:%s err:%v", v, err)
+	do := func(node string) string {
+		n := strings.Split(node, ":")
+		if len(n) != 2 {
+			return node
 		}
+		if strings.Contains(n[1], "%") {
+			fnum, err := strconv.ParseFloat(strings.Trim(n[1], "%"), 64)
+			if err != nil {
+				log.Errorf("parse float value:%s err:%v", node, err)
+			}
+			n[1] = fmt.Sprintf("Percent:%v", fnum/100)
+		} else {
+			n[1] = "Value:" + n[1]
+		}
+		return fmt.Sprintf("ID:%s %s", n[0], n[1])
 	}
+
+	strs := strings.Split(value, "|")
+	if len(strs) > 0 {
+		newStrs := make([]string, 0)
+		for _, v := range strs {
+			newStrs = append(newStrs, do(v))
+		}
+		value = strings.Join(newStrs, "|")
+	} else {
+		value = do(value)
+	}
+	log.Infof("old:%s | new:%s", old, value)
 	return value
 }
 
