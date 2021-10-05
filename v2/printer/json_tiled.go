@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 type EditorMap struct {
@@ -72,7 +73,7 @@ func WriteTiledData(g *Globals, bf *Stream, patterns ...string) {
 		if s, e := os.Stat(match); e != nil || s.IsDir() {
 			continue
 		}
-		data := readTiledFile(match, terrainMap)
+		data := writeTileMap(match, terrainMap)
 		if data != "" {
 			if len(matches)-1 != i {
 				bf.Printf("		%s,\n", data)
@@ -84,7 +85,7 @@ func WriteTiledData(g *Globals, bf *Stream, patterns ...string) {
 	bf.Printf("\t]")
 }
 
-func readTiledFile(path string, terrainMap map[string]int32) string {
+func writeTileMap(path string, terrainMap map[string]int32) string {
 	fbytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Errorf("readTiledFile path:%s err:%v", path, err)
@@ -100,7 +101,10 @@ func readTiledFile(path string, terrainMap map[string]int32) string {
 		return ""
 	}
 	name := filepath.Base(emap.Image.Source)
-	id, _ := strconv.Atoi(name)
+	id, err := strconv.Atoi(strings.TrimSuffix(name, filepath.Ext(name)))
+	if err != nil {
+		log.Errorln("image  strconv.Atoi err:%v name:%s", err, name)
+	}
 	gmap := &GameMap{
 		ID:    int32(id),
 		Name:  name,
@@ -111,7 +115,7 @@ func readTiledFile(path string, terrainMap map[string]int32) string {
 	columns, _ := strconv.Atoi(emap.Columns)
 	for i := 0; i < tileCount; i++ {
 		tile := emap.Tile[i]
-		gmap.Tiles = append(gmap.Tiles, terrainMap[tile.ID])
+		gmap.Tiles = append(gmap.Tiles, terrainMap[tile.Type])
 	}
 	gmap.Xcount = int32(columns)
 	gmap.Ycount = int32(tileCount / columns)
