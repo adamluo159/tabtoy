@@ -178,7 +178,7 @@ func parseProp(value string, fd *model.FieldDescriptor) string {
 	} else {
 		value = do(value)
 	}
-	log.Infof("old:%s | new:%s", old, value)
+	log.Infof("%s->%s", old, value)
 	return value
 }
 
