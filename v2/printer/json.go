@@ -37,6 +37,10 @@ func (self *jsonPrinter) Run(g *Globals) *Stream {
 			log.Infof("%s: %s", i18n.String(i18n.Printer_IgnoredByOutputTag), tab.Name())
 			continue
 		}
+		if tab.LocalFD.Name == "Map" || tab.LocalFD.Name == "Scene" {
+			log.Infof("%s:不转数据，只用表结构", tab.Name())
+			continue
+		}
 
 		if tabIndex > 0 {
 			bf.Printf(", \n")
