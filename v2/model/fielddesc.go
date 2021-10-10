@@ -95,6 +95,15 @@ func (self *FieldDescriptor) complexName() string {
 }
 
 // 自动适配结构体和枚举输出合适的类型, 类型名为go only
+func (self *FieldDescriptor) TsTypeString() string {
+	if self.Complex != nil {
+		return self.Complex.Name
+	} else {
+		return FieldTypeToTsString(self.Type)
+	}
+}
+
+// 自动适配结构体和枚举输出合适的类型, 类型名为go only
 func (self *FieldDescriptor) TypeString() string {
 	if self.Complex != nil {
 		return self.Complex.Name
@@ -158,6 +167,28 @@ func (self *FieldDescriptor) ListSpliter() string {
 func (self *FieldDescriptor) RepeatCheck() bool {
 
 	return self.Meta.GetBool("RepeatCheck")
+}
+
+var tsStrByFieldDescriptor = map[FieldType]string{
+	FieldType_None:   "none",
+	FieldType_Int32:  "number",
+	FieldType_Int64:  "number",
+	FieldType_UInt32: "number",
+	FieldType_UInt64: "number",
+
+	FieldType_Float:  "number",
+	FieldType_String: "string",
+	FieldType_Bool:   "bool",
+	FieldType_Enum:   "enum",
+	FieldType_Struct: "struct",
+}
+
+func FieldTypeToTsString(t FieldType) string {
+	if v, ok := tsStrByFieldDescriptor[t]; ok {
+		return v
+	}
+
+	return "unknown"
 }
 
 var strByFieldDescriptor = map[FieldType]string{

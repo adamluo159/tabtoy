@@ -15,6 +15,7 @@
         "--json_out=${workspaceFolder}/debug/Config.json",
         "--go_out=${workspaceFolder}/debug/table_gen.go",
         "--proto_out=${workspaceFolder}/debug/pb.proto",
+        "--typescript_out=${workspaceFolder}/debug/table.ts",
         "--mark=Client",
         "--tiled_dir=${workspaceFolder}/v2/example/tiled/*.tsx",
         "${workspaceFolder}/v2/example/excel/global/global.xlsx",

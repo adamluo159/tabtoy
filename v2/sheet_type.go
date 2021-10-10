@@ -143,7 +143,7 @@ func (self *TypeSheet) ParseDataType(localFD *model.FileDescriptor, globalFD *mo
 	fd.Kind = model.DescriptorKind_Enum
 	fd.Usage = model.DescriptorUsage_None
 
-	var keyIdx, nameIdx, aliasIdx int = -1, -1, -1
+	var keyIdx, codeIdx, aliasIdx, nameIdx int = -1, -1, -1, -1
 	var keyName string
 	maxCol := self.detectMaxTypeCol()
 	for idx := 0; idx < maxCol; idx++ {
@@ -152,16 +152,18 @@ func (self *TypeSheet) ParseDataType(localFD *model.FileDescriptor, globalFD *mo
 			keyIdx = idx
 			keyName = self.GetCellData(DataSheetHeader_FieldName, idx)
 			fd.Name = fmt.Sprintf("%s%s", self.Name, keyName)
-		} else if strings.Contains(v, "StandName") {
-			nameIdx = idx
+		} else if strings.Contains(v, "StandCode") {
+			codeIdx = idx
 		} else if strings.Contains(v, "StandAlias") {
 			aliasIdx = idx
+		} else if strings.Contains(v, "StandName") {
+			nameIdx = idx
 		}
 	}
 	if keyIdx < 0 || aliasIdx < 0 {
 		return true
 	}
-	fd.NotPrint = nameIdx < 0
+	fd.NotPrint = codeIdx < 0
 	standDef := model.NewFieldDescriptor()
 	standDef.EnumValue = int32(0)
 	standDef.Name = fd.Name + "None"
@@ -186,13 +188,20 @@ func (self *TypeSheet) ParseDataType(localFD *model.FileDescriptor, globalFD *mo
 		if fd.NotPrint {
 			standDef.Name = alias
 		} else {
-			standDef.Name = self.GetCellData(row, nameIdx)
+			standDef.Name = self.GetCellData(row, codeIdx)
+		}
+
+		if nameIdx >= 0 {
+			standDef.Comment = self.GetCellData(row, nameIdx)
+		} else {
+			standDef.Comment = alias
 		}
 
 		standDef.Meta.SetString("Alias", alias)
 		fd.Add(standDef)
 	}
 	localFD.Add(fd)
+
 	return true
 }
 
