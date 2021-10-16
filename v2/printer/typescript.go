@@ -38,6 +38,8 @@ export namespace {{.Package}} {
 }
 `
 
+var tableName string = ""
+
 type typeScriptFieldDescriptor struct {
 	*model.FieldDescriptor
 
@@ -47,7 +49,7 @@ type typeScriptFieldDescriptor struct {
 }
 
 func (self typeScriptFieldDescriptor) IsHeadTable() bool {
-	return self.d.Name == "Table"
+	return self.d.Name == tableName
 }
 
 func (self typeScriptFieldDescriptor) Label() string {
@@ -107,6 +109,7 @@ func (self *typeScriptPrinter) Run(g *Globals) *Stream {
 		log.Errorln(err)
 		return nil
 	}
+	tableName = g.CombineStructName
 
 	var m typeScriptFileModel
 
