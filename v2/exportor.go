@@ -208,6 +208,5 @@ func Run(g *printer.Globals) bool {
 		return false
 	}
 	delNotPrintDef(cachedFile, g)
-
 	return g.PrintCodeFile()
 }

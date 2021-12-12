@@ -98,6 +98,7 @@ func (self *Globals) PrintDataFile() bool {
 			return false
 		}
 	}
+	log.Infof("==========Success==========")
 	return true
 }
 

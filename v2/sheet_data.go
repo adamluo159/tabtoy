@@ -141,7 +141,7 @@ func parseProp(value string, fd *model.FieldDescriptor) string {
 		return value
 	}
 
-	old := value
+	//old := value
 	if fd.Complex == nil || fd.Complex.Name != "Prop" {
 		return value
 	}
@@ -178,7 +178,6 @@ func parseProp(value string, fd *model.FieldDescriptor) string {
 	} else {
 		value = do(value)
 	}
-	log.Infof("%s->%s", old, value)
 	return value
 }
 
