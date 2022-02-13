@@ -269,16 +269,12 @@ func (self *goFieldModel) Comment() string {
 
 	var out string
 
-	if self.FieldDescriptor.Meta.GetString("Alias") != "" {
-		out += "// "
-		out += self.FieldDescriptor.Meta.GetString("Alias")
+	if self.FieldDescriptor.Comment != "" {
+		return "//" + self.FieldDescriptor.Comment
 	}
 
-	if self.FieldDescriptor.Comment != "" {
-		if out == "" {
-			out += "//"
-		}
-		out += self.FieldDescriptor.Comment
+	if self.FieldDescriptor.Meta.GetString("Alias") != "" {
+		return "//" + self.FieldDescriptor.Meta.GetString("Alias")
 	}
 
 	return out
