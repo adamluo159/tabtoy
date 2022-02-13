@@ -256,11 +256,11 @@ func (self *goFieldModel) RawComment() string {
 	var out string
 
 	if self.FieldDescriptor.Meta.GetString("Alias") != "" {
-		out += self.FieldDescriptor.Meta.GetString("Alias")
+		return self.FieldDescriptor.Meta.GetString("Alias")
 	}
 
 	if self.FieldDescriptor.Comment != "" {
-		out += self.FieldDescriptor.Comment
+		return self.FieldDescriptor.Comment
 	}
 	return out
 }
