@@ -16,8 +16,8 @@ export namespace {{.Package}} {
 // Defined in table: {{.DefinedTable}}
 	export enum {{.Name}}{
 	{{range .ProtoFields}}
-		{{.Alias}}
-		{{.Name}} = {{.Number}}, {{.Comment}}
+		{{.Comment}}
+		{{.Name}} = {{.Number}},
 	{{end}}
 	}
 	export const {{.Name}}Name: { [k:number]: string } = {
@@ -31,7 +31,8 @@ export namespace {{.Package}} {
 	{{$iName := .Name}}
 	export interface {{$iName}} {
 	{{range .ProtoFields}}	
-		{{.Name}}:{{.TsTypeString}}{{.Label}}; {{.Comment}} {{.Alias}}
+		{{.Comment}}
+		{{.Name}}:{{.TsTypeString}}{{.Label}};
 	{{if .IsHeadTable}} 	{{.Name}}ByID?:{ [k:number]: {{.TsTypeString}} };  {{end}} {{end}}
 	}
 {{end}}
@@ -59,12 +60,12 @@ func (self typeScriptFieldDescriptor) Label() string {
 	return ""
 }
 
-func (self typeScriptFieldDescriptor) Alias() string {
-	if self.FieldDescriptor.Meta.GetString("Alias") == "" {
-		return ""
-	}
-	return "// " + self.FieldDescriptor.Meta.GetString("Alias")
-}
+// func (self typeScriptFieldDescriptor) Alias() string {
+// 	if self.FieldDescriptor.Meta.GetString("Alias") == "" {
+// 		return ""
+// 	}
+// 	return "/**" + self.FieldDescriptor.Meta.GetString("Alias") + "*/"
+// }
 
 func (self typeScriptFieldDescriptor) CommentValue() string {
 	if self.FieldDescriptor.Comment == "" {
@@ -74,10 +75,19 @@ func (self typeScriptFieldDescriptor) CommentValue() string {
 }
 
 func (self typeScriptFieldDescriptor) Comment() string {
-	if self.FieldDescriptor.Comment == "" {
-		return ""
+	commonStr := self.FieldDescriptor.Comment
+	AliasStr := self.FieldDescriptor.Meta.GetString("Alias")
+	if commonStr == AliasStr {
+		if commonStr == "" {
+			return commonStr
+		}
+		return "/**" + commonStr + "*/"
 	}
-	return "// " + self.FieldDescriptor.Comment
+	mid := " | "
+	if commonStr == "" || AliasStr == "" {
+		mid = ""
+	}
+	return "/**" + commonStr + mid + AliasStr + "*/"
 }
 
 type typeScriptDescriptor struct {
