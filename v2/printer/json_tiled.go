@@ -3,6 +3,7 @@ package printer
 import (
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -104,6 +105,7 @@ func writeTileMap(path string, terrainMap map[string]int32) string {
 	id, err := strconv.Atoi(strings.TrimSuffix(name, filepath.Ext(name)))
 	if err != nil {
 		log.Errorln("image  strconv.Atoi err:%v name:%s", err, name)
+		return ""
 	}
 	gmap := &GameMap{
 		ID:    int32(id),
@@ -113,9 +115,18 @@ func writeTileMap(path string, terrainMap map[string]int32) string {
 	}
 	tileCount, _ := strconv.Atoi(emap.Tilecount)
 	columns, _ := strconv.Atoi(emap.Columns)
-	for i := 0; i < tileCount; i++ {
+	for i := 0; i < len(emap.Tile); i++ {
 		tile := emap.Tile[i]
-		gmap.Tiles = append(gmap.Tiles, terrainMap[tile.Type])
+		if tile.ID != fmt.Sprintf("%d", i) {
+			log.Errorf("tile.ID:%s != i:%d please check terrain type not empty !", tile.ID, i)
+			return ""
+		}
+		t, ok := terrainMap[tile.Type]
+		if !ok {
+			log.Errorf("grid:%d type:%s is not in %+v", i, tile.Type, terrainMap)
+			return ""
+		}
+		gmap.Tiles = append(gmap.Tiles, t)
 	}
 	gmap.Xcount = int32(columns)
 	gmap.Ycount = int32(tileCount / columns)
