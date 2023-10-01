@@ -30,7 +30,12 @@ func V2Entry() {
 
 	g.Version = build.Version
 
+	m := map[string]bool{}
 	for _, v := range flag.Args() {
+		if _, ok := m[v]; ok {
+			continue
+		}
+		m[v] = true
 		g.InputFileList = append(g.InputFileList, v)
 	}
 
