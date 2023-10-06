@@ -20,7 +20,7 @@ package {{.Package}}
 import(	
 	{{if .HasAnyIndex}}"fmt"{{end}}
 	"encoding/json"
-	"io/ioutil"
+	"os"
 )
 {{range $a, $en := .Enums}} 
 // Defined in table: {{$en.DefinedTable}}
@@ -95,7 +95,7 @@ func (self *{{$.Name}}Table) Get{{.Name}}( ) {{.ElementTypeString}} {
 
 // 从json文件加载
 func (self *{{$.Name}}Table) Load(filename string) error {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 
 	if err != nil {
 		return err
