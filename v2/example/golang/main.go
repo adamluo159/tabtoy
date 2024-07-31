@@ -14,7 +14,7 @@ func main() {
 		panic(err)
 	}
 
-	for index, v := range config.SampleByID {
+	for index, v := range config.AAAByID {
 		fmt.Println(index, v)
 	}
 

@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-../../../../../../bin/tabtoy \
+./tabtoy \
 --mode=v2 \
 --csharp_out=./csharp/Example/Config.cs \
 --binary_out=./csharp/Example/Config.bin \
@@ -13,4 +12,4 @@
 --combinename=Config \
 --lan=zh_cn \
 Globals.xlsx \
-Sample.xlsx
+AAA.xlsx

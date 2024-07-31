@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -87,7 +86,7 @@ func WriteTiledData(g *Globals, bf *Stream, patterns ...string) {
 }
 
 func writeTileMap(path string, terrainMap map[string]int32) string {
-	fbytes, err := ioutil.ReadFile(path)
+	fbytes, err := os.ReadFile(path)
 	if err != nil {
 		log.Errorf("readTiledFile path:%s err:%v", path, err)
 		return ""
@@ -104,7 +103,7 @@ func writeTileMap(path string, terrainMap map[string]int32) string {
 	name := filepath.Base(emap.Image.Source)
 	id, err := strconv.Atoi(strings.TrimSuffix(name, filepath.Ext(name)))
 	if err != nil {
-		log.Errorln("image  strconv.Atoi err:%v name:%s", err, name)
+		log.Errorf("image  strconv.Atoi err:%v name:%s", err, name)
 		return ""
 	}
 	gmap := &GameMap{
