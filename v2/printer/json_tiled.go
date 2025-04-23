@@ -6,9 +6,61 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+
+	"github.com/spf13/cast"
 )
+
+type TiledTmx struct {
+	XMLName        xml.Name `xml:"map"`
+	Text           string   `xml:",chardata"`
+	Version        string   `xml:"version,attr"`
+	Tiledversion   string   `xml:"tiledversion,attr"`
+	Orientation    string   `xml:"orientation,attr"`
+	Renderorder    string   `xml:"renderorder,attr"`
+	Width          string   `xml:"width,attr"`
+	Height         string   `xml:"height,attr"`
+	Tilewidth      string   `xml:"tilewidth,attr"`
+	Tileheight     string   `xml:"tileheight,attr"`
+	Infinite       string   `xml:"infinite,attr"`
+	Nextlayerid    string   `xml:"nextlayerid,attr"`
+	Nextobjectid   string   `xml:"nextobjectid,attr"`
+	Editorsettings struct {
+		Text   string `xml:",chardata"`
+		Export struct {
+			Text   string `xml:",chardata"`
+			Target string `xml:"target,attr"`
+			Format string `xml:"format,attr"`
+		} `xml:"export"`
+	} `xml:"editorsettings"`
+	Tileset struct {
+		Text     string `xml:",chardata"`
+		Firstgid string `xml:"firstgid,attr"`
+		Source   string `xml:"source,attr"`
+	} `xml:"tileset"`
+	Imagelayer struct {
+		Text  string `xml:",chardata"`
+		ID    string `xml:"id,attr"`
+		Name  string `xml:"name,attr"`
+		Image struct {
+			Text   string `xml:",chardata"`
+			Source string `xml:"source,attr"`
+			Width  string `xml:"width,attr"`
+			Height string `xml:"height,attr"`
+		} `xml:"image"`
+	} `xml:"imagelayer"`
+	Layer struct {
+		Text   string `xml:",chardata"`
+		ID     string `xml:"id,attr"`
+		Name   string `xml:"name,attr"`
+		Width  string `xml:"width,attr"`
+		Height string `xml:"height,attr"`
+		Data   struct {
+			Text     string `xml:",chardata"`
+			Encoding string `xml:"encoding,attr"`
+		} `xml:"data"`
+	} `xml:"layer"`
+}
 
 type EditorMap struct {
 	XMLName      xml.Name `xml:"tileset"`
@@ -23,7 +75,6 @@ type EditorMap struct {
 	Image        struct {
 		Source string `xml:"source,attr"`
 	} `xml:"image"`
-
 	Tile []struct {
 		Text string `xml:",chardata"`
 		ID   string `xml:"id,attr"`
@@ -32,17 +83,34 @@ type EditorMap struct {
 }
 
 type GameMap struct {
-	ID        int32
-	Name      string
-	Width     int32
-	Height    int32
-	Xsize     int32
-	HalfXsize int32
-	Xcount    int32
-	Ysize     int32
-	HalfYsize int32
-	Ycount    int32
-	Tiles     []int32
+	ID         int32
+	Width      int32
+	Height     int32
+	TileWidth  int32
+	TileHeight int32
+	XCount     int32
+	YCount     int32
+	Tiles      []int32
+}
+
+func (m *GameMap) decodeCSV(raw string, tileTypeMap map[int32]string) (err error) {
+	cleaner := func(r rune) rune {
+		if (r >= '0' && r <= '9') || r == ',' {
+			return r
+		}
+		return -1
+	}
+	rawDataClean := strings.Map(cleaner, raw)
+	str := strings.Split(string(rawDataClean), ",")
+	for _, s := range str {
+		tile := cast.ToInt32(s) - 1
+		if tileTypeMap[tile] == "" {
+			log.Errorf("readTiledFile tileTypeMap[%d] is nil", tile)
+			return fmt.Errorf("readTiledFile %+v tileTypeMap[%d] is nil", tileTypeMap, tile)
+		}
+		m.Tiles = append(m.Tiles, tile)
+	}
+	return err
 }
 
 func WriteTiledData(g *Globals, bf *Stream, patterns ...string) {
@@ -57,14 +125,14 @@ func WriteTiledData(g *Globals, bf *Stream, patterns ...string) {
 	if len(matches) == 0 {
 		return
 	}
-	terrainMap := make(map[string]int32)
+	terrainMap := make(map[int32]string)
 	des := g.DescriptorByName["TerrainType"]
 	if des == nil {
 		log.Errorln("TerrainType Descriptor nil")
 		return
 	}
 	for _, v := range des.Fields {
-		terrainMap[v.Meta.KVPair.GetString("Alias")] = v.EnumValue
+		terrainMap[v.EnumValue] = v.Meta.KVPair.GetString("Alias")
 	}
 	bf.Printf(",\n")
 	bf.Printf("	\"Map\":[\n")
@@ -85,54 +153,34 @@ func WriteTiledData(g *Globals, bf *Stream, patterns ...string) {
 	bf.Printf("\t]")
 }
 
-func writeTileMap(path string, terrainMap map[string]int32) string {
+func writeTileMap(path string, terrainMap map[int32]string) string {
 	fbytes, err := os.ReadFile(path)
 	if err != nil {
 		log.Errorf("readTiledFile path:%s err:%v", path, err)
 		return ""
 	}
-	emap := &EditorMap{}
-	err = xml.Unmarshal(fbytes, emap)
-	if err != nil {
-		err = json.Unmarshal(fbytes, emap)
-	}
+	tmx := &TiledTmx{}
+	err = xml.Unmarshal(fbytes, tmx)
 	if err != nil {
 		log.Errorf("readTiledFile umarshal data:%s err:%v", string(fbytes), err)
 		return ""
 	}
-	name := filepath.Base(emap.Image.Source)
-	id, err := strconv.Atoi(strings.TrimSuffix(name, filepath.Ext(name)))
+
+	fileName := filepath.Base(tmx.Imagelayer.Image.Source)
+	gmap := &GameMap{
+		ID:         cast.ToInt32(strings.Split(fileName, ".")[0]),
+		Width:      cast.ToInt32(tmx.Width) * cast.ToInt32(tmx.Tilewidth),
+		Height:     cast.ToInt32(tmx.Height) * cast.ToInt32(tmx.Tileheight),
+		TileWidth:  cast.ToInt32(tmx.Tilewidth),
+		TileHeight: cast.ToInt32(tmx.Tileheight),
+		XCount:     cast.ToInt32(tmx.Width),
+		YCount:     cast.ToInt32(tmx.Height),
+	}
+	err = gmap.decodeCSV(tmx.Layer.Data.Text, terrainMap)
 	if err != nil {
-		log.Errorf("image  strconv.Atoi err:%v name:%s", err, name)
+		log.Errorf("readTiledFile decodeCSV path:%s error:%v", path, err)
 		return ""
 	}
-	gmap := &GameMap{
-		ID:    int32(id),
-		Name:  name,
-		Xsize: 96,
-		Ysize: 96,
-	}
-	tileCount, _ := strconv.Atoi(emap.Tilecount)
-	columns, _ := strconv.Atoi(emap.Columns)
-	for i := 0; i < len(emap.Tile); i++ {
-		tile := emap.Tile[i]
-		if tile.ID != fmt.Sprintf("%d", i) {
-			log.Errorf("tile.ID:%s != i:%d please check terrain type not empty !", tile.ID, i)
-			return ""
-		}
-		t, ok := terrainMap[tile.Type]
-		if !ok {
-			log.Errorf("grid:%d type:%s is not in %+v", i, tile.Type, terrainMap)
-			return ""
-		}
-		gmap.Tiles = append(gmap.Tiles, t)
-	}
-	gmap.Xcount = int32(columns)
-	gmap.Ycount = int32(tileCount / columns)
-	gmap.HalfXsize = gmap.Xsize / 2
-	gmap.HalfYsize = gmap.Ysize / 2
-	gmap.Width = gmap.Xcount * gmap.Xsize
-	gmap.Height = gmap.Ycount * gmap.Ysize
 	bys, err := json.Marshal(gmap)
 	if err != nil {
 		log.Errorf("readTiledFile json marshal path:%s error:%v", path, err)
