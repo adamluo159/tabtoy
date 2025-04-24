@@ -1,9 +1,12 @@
 package build
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 var (
-	Version   string
+	Version   string = time.Now().Format("20060102150405")
 	GitCommit string
 	BuildTime string
 )

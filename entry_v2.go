@@ -91,7 +91,7 @@ func V2Entry() {
 		g.AddOutputType("modlist", *paramModifyList)
 	}
 	if *paramTypeScriptOut != "" {
-		g.AddOutputType("typescript", *paramTypeScriptOut)
+		g.AddOutputType("ts", *paramTypeScriptOut)
 	}
 
 	if !v2.Run(g) {

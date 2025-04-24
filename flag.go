@@ -48,7 +48,7 @@ var (
 	paramCppOut        = flag.String("cpp_out", "", "output c++ format (*.cpp)")
 	paramJavaOut       = flag.String("java_out", "", "output java code (*.java)")
 	paramTiledDir      = flag.String("tiled_dir", "", "tiled input dir")
-	paramTypeScriptOut = flag.String("typescript_out", "", "output typescript format (*.ts)")
+	paramTypeScriptOut = flag.String("ts_out", "", "output typescript format (*.ts)")
 
 	// 按表多文件导出
 	paramJsonDir     = flag.String("json_dir", "", "output json format (*.json) to dir")

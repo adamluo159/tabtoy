@@ -173,10 +173,8 @@ func (self *{{$.Name}}Table) RegisterIndexEntry(name string, indexCallback func(
 
 // 注册加载前回调
 func (self *{{$.Name}}Table) RegisterPreEntry(callback func(*{{$.Name}}Table) error) {
-
 	self.preFuncList = append(self.preFuncList, callback)
 }
-
 
 // 注册所有完成时回调
 func (self *{{$.Name}}Table) RegisterPostEntry(callback func(*{{$.Name}}Table) error) {
@@ -184,14 +182,10 @@ func (self *{{$.Name}}Table) RegisterPostEntry(callback func(*{{$.Name}}Table) e
 	self.postFuncList = append(self.postFuncList, callback)
 }
 
-
 // 创建一个{{$.Name}}表读取实例
 func New{{$.Name}}Table() *{{$.Name}}Table {
 	return &{{$.Name}}Table{
-
-	
 		indexFuncByName: map[string][]func(*{{$.Name}}Table) error{
-		
 		{{range $a, $strus := .IndexedStructs}}
 			"{{$strus.Name}}": {func(tab *{{$.Name}}Table)error {
 				
@@ -226,20 +220,14 @@ func New{{$.Name}}Table() *{{$.Name}}Table {
 
 				return nil
 			}},
-		{{end}}
-		
-			
+		{{end}}		
 		},
-		
 
 		{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
 		{{$strus.Name}}By{{.Name}} : make(map[{{.KeyType}}]*{{$strus.TypeName}}),
 		{{end}} {{end}}
-		
 	}
 }
-
-
 `
 
 // 每个带有MakeIndex的列

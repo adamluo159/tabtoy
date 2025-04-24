@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/adamluo159/tabtoy/build"
 	"github.com/davyxu/golog"
 	"github.com/pkg/profile"
-	"os"
 )
 
 var log = golog.New("main")
