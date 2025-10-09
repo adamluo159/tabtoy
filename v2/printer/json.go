@@ -27,10 +27,7 @@ func (self *jsonPrinter) Run(g *Globals) *Stream {
 
 	bf := NewStream()
 	bf.Printf("{\n")
-
-	bf.Printf("	\"Tool\": \"github.com/adamluo159/tabtoy\",\n")
-	bf.Printf("	\"Version\": \"%s\",\n", g.Version)
-
+	
 	for tabIndex, tab := range g.Tables {
 
 		if !tab.LocalFD.MatchTag(".json") {
