@@ -82,7 +82,9 @@ type {{$.Name}}Table struct{
 	
 	{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
 	{{$strus.Name}}By{{.Name}} map[{{.KeyType}}]*{{$strus.TypeName}}
-	{{end}} {{end}}
+	{{end}}{{if gt (len .Indexes) 1}}
+	{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}}
+	{{end}}{{end}}
 }
 
 {{range .VerticalFields}}
@@ -91,6 +93,25 @@ func (self *{{$.Name}}Table) Get{{.Name}}( ) {{.ElementTypeString}} {
 	return self.{{.Name}}[0]
 }
 {{end}}
+
+{{range .AllStructs}}
+/** 获取{{.TypeName}}列表 */
+func (self *{{$.Name}}Table) Get{{.TypeName}}s( ) []*{{.TypeName}} {
+	return self.{{.Name}}
+}
+{{end}}
+
+{{range $strus := .IndexedStructs}} {{range .Indexes}}
+/** 通过{{.Name}}获取{{$strus.TypeName}} */
+func (self *{{$.Name}}Table) Get{{$strus.TypeName}}By{{.Name}}(key {{.KeyType}}) *{{$strus.TypeName}} {
+	return self.{{$strus.Name}}By{{.Name}}[key]
+}
+{{end}}{{if gt (len .Indexes) 1}}
+/** 通过{{(index .Indexes 0).Name}}和{{(index .Indexes 1).Name}}获取{{$strus.TypeName}} */
+func (self *{{$.Name}}Table) Get{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}(k1 {{(index .Indexes 0).KeyType}}, k2 {{(index .Indexes 1).KeyType}}) *{{$strus.TypeName}} {
+	return self.{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }{K1: k1, K2: k2}]
+}
+{{end}}{{end}}
 
 
 // 从json文件加载
@@ -241,23 +262,31 @@ func New{{$.Name}}Table() *{{$.Name}}Table {
 	return &{{$.Name}}Table{
 		indexFuncByName: map[string][]func(*{{$.Name}}Table) error{
 		{{range $a, $strus := .IndexedStructs}}
-			"{{$strus.Name}}": {func(tab *{{$.Name}}Table)error {
-				
-				// {{$strus.Name}}
-				for _, def := range tab.{{$strus.Name}} {
-					{{range .Indexes}}
-					if _, ok := tab.{{$strus.Name}}By{{.Name}}[def.{{.Name}}]; ok {
-						panic(fmt.Sprintf("duplicate index in {{$strus.Name}}By{{.Name}}: %v", def.{{.Name}}))
-					}
-					{{end}}		
-					{{range .Indexes}}
-					tab.{{$strus.Name}}By{{.Name}}[def.{{.Name}}] = def{{end}}
-					
+		"{{$strus.Name}}": {func(tab *{{$.Name}}Table)error {
+			
+			// {{$strus.Name}}
+			for _, def := range tab.{{$strus.Name}} {
+				{{range .Indexes}}
+				if _, ok := tab.{{$strus.Name}}By{{.Name}}[def.{{.Name}}]; ok {
+					panic(fmt.Sprintf("duplicate index in {{$strus.Name}}By{{.Name}}: %v", def.{{.Name}}))
 				}
+				{{end}}		
+				{{range .Indexes}}
+				tab.{{$strus.Name}}By{{.Name}}[def.{{.Name}}] = def{{end}}
+				{{if gt (len .Indexes) 1}}
+			{{$idx1 := index .Indexes 0}}
+			{{$idx2 := index .Indexes 1}}
+			key := struct{ K1 {{$idx1.KeyType}}; K2 {{$idx2.KeyType}} }{K1: def.{{$idx1.Name}}, K2: def.{{$idx2.Name}}}
+			if _, ok := tab.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key]; ok {
+				panic(fmt.Sprintf("duplicate index in {{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}: %v", key))
+			}
+			tab.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key] = def
+			{{end}}
+			}
 
-				return nil
-			}},
-		{{end}}
+			return nil
+		}},
+	{{end}}
 		
 			
 		},
@@ -265,21 +294,25 @@ func New{{$.Name}}Table() *{{$.Name}}Table {
 		clearFuncByName: map[string][]func(*{{$.Name}}Table)error{
 		
 		{{range $a, $strus := .IndexedStructs}}
-			"{{$strus.Name}}": {func(tab *{{$.Name}}Table) error{
-				
-				// {{$strus.Name}}
-	
-				{{range .Indexes}}
-				tab.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}}){{end}}
+		"{{$strus.Name}}": {func(tab *{{$.Name}}Table) error{
+			
+			// {{$strus.Name}}
+		
+			{{range .Indexes}}
+			tab.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}}){{end}}
+			{{if gt (len .Indexes) 1}}
+			tab.{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} = make(map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}}){{end}}
 
-				return nil
-			}},
-		{{end}}		
+			return nil
+		}},
+	{{end}}		
 		},
 
 		{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
 		{{$strus.Name}}By{{.Name}} : make(map[{{.KeyType}}]*{{$strus.TypeName}}),
-		{{end}} {{end}}
+		{{end}}{{if gt (len .Indexes) 1}}
+		{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} : make(map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}}),
+		{{end}}{{end}}
 	}
 }
 `
@@ -416,6 +449,7 @@ type goFileModel struct {
 	Enums          []*goStructModel
 	IndexCount     int
 	AllStructs     []*goIndexStructModel
+	PackageName    string
 
 	// 配置的字段
 	VerticalFields []*goFieldModel
@@ -430,6 +464,10 @@ func (self *goFileModel) HasAnyStruct() bool {
 }
 
 func (self *goFileModel) Package() string {
+	// 优先使用命令行指定的包名，如果没有则使用表格中定义的包名
+	if self.PackageName != "" {
+		return self.PackageName
+	}
 	return self.FileDescriptor.Pragma.GetString("Package")
 }
 
@@ -542,10 +580,11 @@ func (self *goPrinter) Run(g *Globals) *Stream {
 	var fm goFileModel
 	fm.ToolVersion = g.Version
 	fm.FileDescriptor = g.FileDescriptor
+	fm.PackageName = g.PackageName
 
 	collectIndexInfo(g, &fm)
 	collectAllStructInfo(g, &fm)
-	
+
 	// 收集所有结构体信息，包括没有索引的结构体
 	for _, fd := range g.CombineStruct.Fields {
 		if g.CombineStruct.Usage != model.DescriptorUsage_CombineStruct {

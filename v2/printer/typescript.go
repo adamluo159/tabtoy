@@ -50,16 +50,18 @@ export interface TablePart {
 export class TableAccessor {
     private data: Table;
 
-    private BlockByID = new Map<number, BlockDefine>();
-    private EnemyByID = new Map<number, EnemyDefine>();
+    {{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
+    private {{$strus.TypeName}}By{{.Name}} = new Map<{{.KeyType}}, {{$strus.TypeName}}>();
+    {{end}}{{if gt (len .Indexes) 1}}
+    private {{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} = new Map<string, {{$strus.TypeName}}>();
+    {{end}}{{end}}
 
     /** 构造函数 */
     constructor() {
         this.data = {
-            Block: [],
-            Bullet: [],
-            Const: [],
-            Enemy: []
+            {{range $a, $strus := .All}}
+            {{$strus.Name}}: [],
+            {{end}}
         };
     }
 
@@ -79,18 +81,11 @@ export class TableAccessor {
     loadTableByName(tableName: string, data: string): boolean {
         try {
             switch (tableName) {
-                case "Block":
-                    this.data.Block = JSON.parse(data) as BlockDefine[];
+                {{range $a, $strus := .All}}
+                case "{{$strus.Name}}":
+                    this.data.{{$strus.Name}} = JSON.parse(data) as {{$strus.TypeName}}[];
                     break;
-                case "Bullet":
-                    this.data.Bullet = JSON.parse(data) as BulletDefine[];
-                    break;
-                case "Const":
-                    this.data.Const = JSON.parse(data) as ConstDefine[];
-                    break;
-                case "Enemy":
-                    this.data.Enemy = JSON.parse(data) as EnemyDefine[];
-                    break;
+                {{end}}
                 default:
                     return false;
             }
@@ -102,63 +97,64 @@ export class TableAccessor {
     }
     /** 构建所有索引 */
     private buildAllIndexes() {
-        this.buildBlockIndexes();
-        this.buildEnemyIndexes();
+        {{range $a, $strus := .IndexedStructs}}
+        this.build{{$strus.TypeName}}Indexes();
+        {{end}}
     }
 
-    /** 构建Block索引 */
-    private buildBlockIndexes() {
-        this.BlockByID.clear();
+    {{range $a, $strus := .IndexedStructs}}
+    /** 构建{{$strus.TypeName}}索引 */
+    private build{{$strus.TypeName}}Indexes() {
+        {{range .Indexes}}
+        this.{{$strus.TypeName}}By{{.Name}}.clear();
+        {{end}}
+        {{if gt (len .Indexes) 1}}
+        this.{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}.clear();
+        {{end}}
         
-        for (const item of this.data.Block) {
-            if (this.BlockByID.has(item.ID)) {
-                throw new Error("Duplicate index in BlockByID: " + item.ID);
+        for (const item of this.data.{{$strus.Name}}) {
+            {{range .Indexes}}
+            if (this.{{$strus.TypeName}}By{{.Name}}.has(item.{{.Name}})) {
+                throw new Error("Duplicate index in {{$strus.TypeName}}By{{.Name}}: " + item.{{.Name}});
             }
-            this.BlockByID.set(item.ID, item);
+            this.{{$strus.TypeName}}By{{.Name}}.set(item.{{.Name}}, item);
+            {{end}}
+            {{if gt (len .Indexes) 1}}
+            const combinedKey = item.{{(index .Indexes 0).Name}} + "|" + item.{{(index .Indexes 1).Name}};
+            if (this.{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}.has(combinedKey)) {
+                throw new Error("Duplicate combined index in {{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}: " + combinedKey);
+            }
+            this.{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}.set(combinedKey, item);
+            {{end}}
         }
     }
+    {{end}}
 
-    /** 构建Enemy索引 */
-    private buildEnemyIndexes() {
-        this.EnemyByID.clear();
-        
-        for (const item of this.data.Enemy) {
-            if (this.EnemyByID.has(item.ID)) {
-                throw new Error("Duplicate index in EnemyByID: " + item.ID);
-            }
-            this.EnemyByID.set(item.ID, item);
-        }
+    {{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
+    /** 通过{{.Name}}获取{{$strus.TypeName}} */
+    get{{$strus.TypeName}}By{{.Name}}(key: {{.KeyType}}): {{$strus.TypeName}} | undefined {
+        return this.{{$strus.TypeName}}By{{.Name}}.get(key);
     }
-
-    /** 通过ID获取Block */
-    getBlockByID(key: number): BlockDefine | undefined {
-        return this.BlockByID.get(key);
+    {{end}}{{if gt (len .Indexes) 1}}
+    /** 通过{{(index .Indexes 0).Name}}和{{(index .Indexes 1).Name}}获取{{$strus.TypeName}} */
+    get{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}({{(index .Indexes 0).Name}}: {{(index .Indexes 0).KeyType}}, {{(index .Indexes 1).Name}}: {{(index .Indexes 1).KeyType}}): {{$strus.TypeName}} | undefined {
+        const combinedKey = {{(index .Indexes 0).Name}} + "|" + {{(index .Indexes 1).Name}};
+        return this.{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}.get(combinedKey);
     }
+    {{end}}{{end}}
 
-    /** 通过ID获取Enemy */
-    getEnemyByID(key: number): EnemyDefine | undefined {
-        return this.EnemyByID.get(key);
-    }
-
-    /**获取Block */    
-    getBlocks(): BlockDefine[] {
-        return this.data.Block;
+    {{range $a, $strus := .All}}
+    /**获取{{$strus.TypeName}}列表 */    
+    get{{$strus.TypeName}}s(): {{$strus.TypeName}}[] {
+        return this.data.{{$strus.Name}};
     }    
-
-    /**获取Bullet */    
-    getBullets(): BulletDefine[] {
-        return this.data.Bullet;
+    {{end}}
+    {{range $a, $strus := .All}}{{if $strus.IsVertical}}
+    /**获取{{$strus.TypeName}}配置 */    
+    get{{$strus.TypeName}}(): {{$strus.TypeName}} {
+        return this.data.{{$strus.Name}}[0];
     }    
-
-    /**获取Const */    
-    getConst(): ConstDefine {
-        return this.data.Const[0];
-    }    
-
-    /**获取Enemy */    
-    getEnemys(): EnemyDefine[] {
-        return this.data.Enemy;
-    } 
+    {{end}}{{end}} 
   }  
 }`
 
@@ -252,9 +248,14 @@ type tsFileModel struct {
 	Enums          []*tsStructModel
 	Verticals      []*tsIndexedStructModel
 	Name           string
+	PackageName    string
 }
 
 func (self *tsFileModel) Package() string {
+	// 优先使用命令行指定的包名，如果没有则使用表格中定义的包名
+	if self.PackageName != "" {
+		return self.PackageName
+	}
 	return self.FileDescriptor.Pragma.GetString("Package")
 }
 
@@ -346,6 +347,7 @@ func (self *tsPrinter) Run(g *Globals) *Stream {
 	fm.ToolVersion = g.Version
 	fm.FileDescriptor = g.FileDescriptor
 	fm.Name = g.FileDescriptor.Pragma.GetString("TableName")
+	fm.PackageName = g.PackageName
 
 	collectTSIndexInfo(g, &fm)
 	collectAllTSStructInfo(g, &fm)
