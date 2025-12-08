@@ -104,6 +104,60 @@ func (self *{{$.Name}}Table) Load(filename string) error {
 	return self.LoadData(data)
 }
 
+// 从目录加载拆分的json文件
+func (self *{{$.Name}}Table) LoadFromDir(dir string) error {
+	// 清除前通知
+	for _, list := range self.clearFuncByName {
+		for _, v := range list {
+			if err := v(self); err != nil {
+				return err
+			}
+		}
+	}
+
+	// 所有加载前的回调
+	for _, v := range self.preFuncList {
+		if err := v(self); err != nil {
+			return err
+		}
+	}
+
+	// 加载每个表单的json文件
+	{{range $a, $strus := .AllStructs}}
+	{
+		filename := fmt.Sprintf("%s/%s.json", dir, "{{$strus.Name}}")
+		data, err := os.ReadFile(filename)
+		if err != nil {
+			return fmt.Errorf("load %s failed: %w", filename, err)
+		}
+		
+		var items []*{{$strus.TypeName}}
+		if err := json.Unmarshal(data, &items); err != nil {
+			return fmt.Errorf("unmarshal %s failed: %w", filename, err)
+		}
+		self.{{$strus.Name}} = items
+	}
+	{{end}}
+
+	// 生成索引
+	for _, list := range self.indexFuncByName {
+		for _, v := range list {
+			if err := v(self); err != nil {
+				return err
+			}
+		}
+	}
+
+	// 所有完成时的回调
+	for _, v := range self.postFuncList {
+		if err := v(self); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // 从二进制加载
 func (self *{{$.Name}}Table) LoadData(data []byte) error {
 
@@ -361,6 +415,7 @@ type goFileModel struct {
 	Structs        []*goStructModel
 	Enums          []*goStructModel
 	IndexCount     int
+	AllStructs     []*goIndexStructModel
 
 	// 配置的字段
 	VerticalFields []*goFieldModel
@@ -490,6 +545,25 @@ func (self *goPrinter) Run(g *Globals) *Stream {
 
 	collectIndexInfo(g, &fm)
 	collectAllStructInfo(g, &fm)
+	
+	// 收集所有结构体信息，包括没有索引的结构体
+	for _, fd := range g.CombineStruct.Fields {
+		if g.CombineStruct.Usage != model.DescriptorUsage_CombineStruct {
+			continue
+		}
+
+		if fd.Complex == nil {
+			continue
+		}
+
+		// 这个字段被限制输出
+		if !fd.Complex.File.MatchTag(".go") {
+			continue
+		}
+
+		// 这个结构有索引才创建
+		fm.AllStructs = append(fm.AllStructs, &goIndexStructModel{FieldDescriptor: fd})
+	}
 
 	bf := NewStream()
 

@@ -1,6 +1,8 @@
 package printer
 
 import (
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/adamluo159/tabtoy/util"
@@ -24,12 +26,139 @@ type jsonPrinter struct {
 }
 
 func (self *jsonPrinter) Run(g *Globals) *Stream {
-
+	// 如果设置了JsonDir，将每个表单独输出为JSON文件
+	if g.JsonDir != "" {
+		// 创建输出目录
+		if err := os.MkdirAll(g.JsonDir, 0755); err != nil {
+			log.Errorf("create json dir failed: %v", err)
+			return nil
+		}
+		
+		// 遍历每个表，单独输出为JSON文件
+		for _, tab := range g.Tables {
+			if !tab.LocalFD.MatchTag(".json") {
+				log.Infof("%s: %s", i18n.String(i18n.Printer_IgnoredByOutputTag), tab.Name())
+				continue
+			}
+			if tab.LocalFD.Name == "Map" || tab.LocalFD.Name == "Scene" {
+				log.Infof("%s:不转数据，只用表结构", tab.Name())
+				continue
+			}
+			
+			// 创建输出流
+			bf := NewStream()
+			bf.Printf("[")
+			
+			// 遍历每一行
+			for rIndex, r := range tab.Recs {
+				if rIndex > 0 {
+					bf.Printf(",")
+				}
+				bf.Printf("\n\t{")
+				
+				var hasWriteColumn bool
+				
+				// 遍历每一列
+				for rootFieldIndex, node := range r.Nodes {
+					if node.SugguestIgnore {
+						continue
+					}
+					
+					if hasWriteColumn && rootFieldIndex > 0 {
+						bf.Printf(", ")
+						hasWriteColumn = false
+					}
+					
+					if node.IsRepeated {
+						bf.Printf("\"%s\":[ ", node.Name)
+					} else {
+						bf.Printf("\"%s\": ", node.Name)
+					}
+					
+					// 普通值
+					if node.Type != model.FieldType_Struct {
+						if node.IsRepeated {
+							// repeated 值序列
+							for arrIndex, valueNode := range node.Child {
+								bf.Printf("%s", valueWrapperJson(node.Type, valueNode))
+								
+								// 多个值分割
+								if arrIndex < len(node.Child)-1 {
+									bf.Printf(", ")
+								}
+							}
+						} else {
+							// 单值
+							valueNode := node.Child[0]
+							bf.Printf("%s", valueWrapperJson(node.Type, valueNode))
+						}
+					} else {
+						// 遍历repeated的结构体
+						for structIndex, structNode := range node.Child {
+							// 结构体开始
+							bf.Printf("{")
+							
+							var hasWriteField bool
+							
+							// 遍历一个结构体的字段
+							for structFieldIndex, fieldNode := range structNode.Child {
+								if fieldNode.SugguestIgnore {
+									continue
+								}
+								
+								if hasWriteField && structFieldIndex > 0 {
+									bf.Printf(", ")
+									hasWriteField = false
+								}
+								
+								// 值节点总是在第一个
+								valueNode := fieldNode.Child[0]
+								bf.Printf("\"%s\": %s", fieldNode.Name, valueWrapperJson(fieldNode.Type, valueNode))
+								hasWriteField = true
+							}
+							
+							// 结构体结束
+							bf.Printf(" }")
+							
+							// 多个结构体分割
+							if structIndex < len(node.Child)-1 {
+								bf.Printf(", ")
+							}
+						}
+					}
+					
+					if node.IsRepeated {
+						bf.Printf(" ]")
+					}
+					
+					// 根字段分割
+					hasWriteColumn = true
+				}
+				
+				bf.Printf(" }")
+			}
+			
+			bf.Printf("\n]")
+			
+			// 输出文件路径
+			outputPath := filepath.Join(g.JsonDir, tab.LocalFD.Name+".json")
+			if err := bf.WriteFile(outputPath); err != nil {
+				log.Errorf("write json file failed: %v", err)
+				return nil
+			}
+			
+			log.Infof("[json] %s", outputPath)
+		}
+		
+		// 返回空流，表示已经处理完成
+		return NewStream()
+	}
+	
+	// 否则输出合并的JSON文件
 	bf := NewStream()
 	bf.Printf("{\n")
 	
 	for tabIndex, tab := range g.Tables {
-
 		if !tab.LocalFD.MatchTag(".json") {
 			log.Infof("%s: %s", i18n.String(i18n.Printer_IgnoredByOutputTag), tab.Name())
 			continue
@@ -46,7 +175,6 @@ func (self *jsonPrinter) Run(g *Globals) *Stream {
 		if !printTableJson(bf, tab) {
 			return nil
 		}
-
 	}
 	if g.TiledFileDir != "" {
 		WriteTiledData(g, bf, g.TiledFileDir)

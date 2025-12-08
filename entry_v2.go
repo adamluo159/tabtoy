@@ -50,6 +50,7 @@ func V2Entry() {
 	g.PackageName = *paramPackageName
 	g.FieldMark = *paramFieldExport
 	g.TiledFileDir = *paramTiledDir
+	g.JsonDir = *paramJsonDir
 
 	if *paramProtoOut != "" {
 		g.AddOutputType("proto", *paramProtoOut)
