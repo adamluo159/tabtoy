@@ -235,6 +235,9 @@ func (self *DataHeader) makeRowDescriptor(fileD *model.FileDescriptor, rootField
 		rowType.Add(field)
 	}
 
+	// 根据MakeIndex:true+RepeatCheck:true自动生成联合索引
+	rowType.AutoGenerateUnionIndexes()
+
 	return true
 
 }

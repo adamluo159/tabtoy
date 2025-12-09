@@ -88,10 +88,11 @@ type {{$.Name}}Data struct{
 	{{$.Name}}
 	
 	{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
-	{{$strus.Name}}By{{.Name}} map[{{.KeyType}}]*{{$strus.TypeName}}
-	{{end}}{{if gt (len .Indexes) 1}}
-	{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}}
-	{{end}}{{end}}
+{{$strus.Name}}By{{.Name}} map[{{.KeyType}}]*{{$strus.TypeName}}
+{{end}}{{end}}{{/* 联合索引字段定义 - 基于UnionIndex标记 */}}
+{{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+{{$strus.Name}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}} map[struct{ K1 int32; K2 int32 }]*{{$strus.TypeName}}
+{{end}}{{end}}{{end}}
 }
 
 {{range .VerticalFields}}
@@ -113,12 +114,13 @@ func (self *{{$.Name}}Table) Get{{.TypeName}}s( ) []*{{.TypeName}} {
 func (self *{{$.Name}}Table) Get{{$strus.TypeName}}By{{.Name}}(key {{.KeyType}}) *{{$strus.TypeName}} {
 	return self.data.Load().{{$strus.Name}}By{{.Name}}[key]
 }
-{{end}}{{if gt (len .Indexes) 1}}
-/** 通过{{(index .Indexes 0).Name}}和{{(index .Indexes 1).Name}}获取{{$strus.TypeName}} */
-func (self *{{$.Name}}Table) Get{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}(k1 {{(index .Indexes 0).KeyType}}, k2 {{(index .Indexes 1).KeyType}}) *{{$strus.TypeName}} {
-	return self.data.Load().{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }{K1: k1, K2: k2}]
+{{end}}{{end}}{{/* 联合索引访问方法 - 基于UnionIndex标记 */}}
+{{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+/** 通过{{(index $unionFields 0).Name}}和{{(index $unionFields 1).Name}}获取{{$strus.TypeName}} */
+func (self *{{$.Name}}Table) Get{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}(k1 int32, k2 int32) *{{$strus.TypeName}} {
+	return self.data.Load().{{$strus.Name}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}[struct{ K1 int32; K2 int32 }{K1: k1, K2: k2}]
 }
-{{end}}{{end}}
+{{end}}{{end}}{{end}}
 
 
 // 从json文件加载
@@ -140,9 +142,10 @@ func (self *{{$.Name}}Table) LoadFromDir(dir string) error {
 	// 创建所有索引映射
 	{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
 	newData.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}})
-	{{end}}{{if gt (len .Indexes) 1}}
-	newData.{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} = make(map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}})
-	{{end}}{{end}}
+	{{end}}{{end}}{{/* 联合索引初始化 - 基于UnionIndex标记 */}}
+	{{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+	newData.{{$strus.Name}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}} = make(map[struct{ K1 int32; K2 int32 }]*{{$strus.TypeName}})
+	{{end}}{{end}}{{end}}
 	
 	// 所有加载前的回调
 	for _, v := range self.preFuncList {
@@ -214,9 +217,10 @@ func (self *{{$.Name}}Table) LoadData(data []byte) error {
 	// 创建所有索引映射
 	{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
 	newData.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}})
-	{{end}}{{if gt (len .Indexes) 1}}
-	newData.{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} = make(map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}})
-	{{end}}{{end}}
+	{{end}}{{end}}{{/* 联合索引初始化 - 基于UnionIndex标记 */}}
+	{{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+	newData.{{$strus.Name}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}} = make(map[struct{ K1 int32; K2 int32 }]*{{$strus.TypeName}})
+	{{end}}{{end}}{{end}}
 
 	// 所有加载前的回调
 	for _, v := range self.preFuncList {
@@ -282,9 +286,10 @@ func New{{$.Name}}Table() *{{$.Name}}Table {
 	// 初始化所有索引映射
 	{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
 	initialData.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}})
-	{{end}}{{if gt (len .Indexes) 1}}
-	initialData.{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} = make(map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}})
-	{{end}}{{end}}
+	{{end}}{{end}}{{/* 联合索引初始化 - 基于UnionIndex标记 */}}
+	{{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+	initialData.{{$strus.Name}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}} = make(map[struct{ K1 int32; K2 int32 }]*{{$strus.TypeName}})
+	{{end}}{{end}}{{end}}
 	
 	table := &{{$.Name}}Table{
 		indexFuncByName: map[string][]func(*{{$.Name}}Table) error{
@@ -295,20 +300,25 @@ func New{{$.Name}}Table() *{{$.Name}}Table {
 			data := tab.data.Load()
 			for _, def := range data.{{$strus.Name}} {
 				{{range .Indexes}}
-				if _, ok := data.{{$strus.Name}}By{{.Name}}[def.{{.Name}}]; ok {
-					return fmt.Errorf("duplicate index in {{$strus.Name}}By{{.Name}}: %v", def.{{.Name}})
-				}
-				{{end}}		
-				{{range .Indexes}}
-			data.{{$strus.Name}}By{{.Name}}[def.{{.Name}}] = def{{end}}
-				{{if gt (len .Indexes) 1}}
-			{{$idx1 := index .Indexes 0}}
-			{{$idx2 := index .Indexes 1}}
-			key := struct{ K1 {{$idx1.KeyType}}; K2 {{$idx2.KeyType}} }{K1: def.{{$idx1.Name}}, K2: def.{{$idx2.Name}}}
+			if _, ok := data.{{$strus.Name}}By{{.Name}}[def.{{.Name}}]; ok {
+				return fmt.Errorf("duplicate index in {{$strus.Name}}By{{.Name}}: %v", def.{{.Name}})
+			}
+			data.{{$strus.Name}}By{{.Name}}[def.{{.Name}}] = def
+			{{end}}
+				{{/* 联合索引构建逻辑 - 基于UnionIndex标记 */}}
+			{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}
+			{{if gt (len $unionFields) 1}}
+			{{$idx1 := index $unionFields 0}}
+			{{$idx2 := index $unionFields 1}}
+			{{/* 安全检查：确保$idx1.Parent不为nil */}}
+			{{if and $idx1.Parent (eq $strus.Name $idx1.Parent.Name)}}
+			key := struct{ K1 int32; K2 int32 }{K1: def.{{$idx1.Name}}, K2: def.{{$idx2.Name}}}
 			if _, ok := data.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key]; ok {
 				return fmt.Errorf("duplicate index in {{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}: %v", key)
 			}
 			data.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key] = def
+			{{end}}
+			{{end}}
 			{{end}}
 			}
 
@@ -505,14 +515,14 @@ func collectIndexInfo(g *Globals, fm *goFileModel) {
 			continue
 		}
 
-		// 这个结构有索引才创建
-		if len(fd.Complex.Indexes) == 0 {
+		// 这个结构有索引或联合索引才创建
+		if len(fd.Complex.Indexes) == 0 && len(fd.Complex.UnionIndexes) == 0 {
 			continue
 		}
 
 		rm := goIndexStructModel{FieldDescriptor: fd}
-
-		// 索引字段
+		
+		// 只收集单个索引字段，联合索引字段不生成单独索引
 		for _, key := range fd.Complex.Indexes {
 
 			rm.Indexes = append(rm.Indexes, &goFieldModel{
@@ -520,6 +530,8 @@ func collectIndexInfo(g *Globals, fm *goFileModel) {
 			})
 			fm.IndexCount++
 		}
+
+		// 联合索引字段不需要添加到Indexes中，它们会通过UnionIndexes单独处理
 
 		fm.IndexedStructs = append(fm.IndexedStructs, &rm)
 

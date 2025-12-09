@@ -15,6 +15,7 @@ var builtinTag = map[string]bool{
 	"TableName":   true,
 	"Package":     true,
 	"OutputTag":   true,
+	"UnionIndex":  true,
 }
 
 func IsSystemTag(tag string) bool {

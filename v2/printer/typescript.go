@@ -52,9 +52,10 @@ export class TableAccessor {
 
     {{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
     private {{$strus.TypeName}}By{{.Name}} = new Map<{{.KeyType}}, {{$strus.TypeName}}>();
-    {{end}}{{if gt (len .Indexes) 1}}
-    private {{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} = new Map<string, {{$strus.TypeName}}>();
-    {{end}}{{end}}
+    {{end}}{{end}}{{/* 联合索引字段定义 - 基于UnionIndex标记 */}}
+    {{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+    private {{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}} = new Map<string, {{$strus.TypeName}}>();
+    {{end}}{{end}}{{end}}
 
     /** 构造函数 */
     constructor() {
@@ -110,9 +111,10 @@ export class TableAccessor {
         {{range .Indexes}}
         this.{{$strus.TypeName}}By{{.Name}}.clear();
         {{end}}
-        {{if gt (len .Indexes) 1}}
-        this.{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}.clear();
-        {{end}}
+        {{/* 联合索引清除 */}}
+        {{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+        this.{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}.clear();
+        {{end}}{{end}}
         
         for (const item of this.data.{{$strus.Name}}) {
             {{range .Indexes}}
@@ -121,13 +123,14 @@ export class TableAccessor {
             }
             this.{{$strus.TypeName}}By{{.Name}}.set(item.{{.Name}}, item);
             {{end}}
-            {{if gt (len .Indexes) 1}}
-            const combinedKey = item.{{(index .Indexes 0).Name}} + "|" + item.{{(index .Indexes 1).Name}};
-            if (this.{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}.has(combinedKey)) {
-                throw new Error("Duplicate combined index in {{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}: " + combinedKey);
+            {{/* 联合索引构建 */}}
+            {{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+            const combinedKey = item.{{(index $unionFields 0).Name}} + "|" + item.{{(index $unionFields 1).Name}};
+            if (this.{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}.has(combinedKey)) {
+                throw new Error("Duplicate combined index in {{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}: " + combinedKey);
             }
-            this.{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}.set(combinedKey, item);
-            {{end}}
+            this.{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}.set(combinedKey, item);
+            {{end}}{{end}}
         }
     }
     {{end}}
@@ -136,12 +139,6 @@ export class TableAccessor {
     /** 通过{{.Name}}获取{{$strus.TypeName}} */
     get{{$strus.TypeName}}By{{.Name}}(key: {{.KeyType}}): {{$strus.TypeName}} | undefined {
         return this.{{$strus.TypeName}}By{{.Name}}.get(key);
-    }
-    {{end}}{{if gt (len .Indexes) 1}}
-    /** 通过{{(index .Indexes 0).Name}}和{{(index .Indexes 1).Name}}获取{{$strus.TypeName}} */
-    get{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}({{(index .Indexes 0).Name}}: {{(index .Indexes 0).KeyType}}, {{(index .Indexes 1).Name}}: {{(index .Indexes 1).KeyType}}): {{$strus.TypeName}} | undefined {
-        const combinedKey = {{(index .Indexes 0).Name}} + "|" + {{(index .Indexes 1).Name}};
-        return this.{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}.get(combinedKey);
     }
     {{end}}{{end}}
 
@@ -282,18 +279,20 @@ func collectTSIndexInfo(g *Globals, fm *tsFileModel) {
 			IsVertical:      fd.Complex.File.Pragma.GetBool("Vertical"),
 		}
 
-		// 设置索引字段
+		// 设置索引字段，只收集单个索引字段
 		for _, key := range fd.Complex.Indexes {
 			rm.Indexes = append(rm.Indexes, &tsFieldModel{
 				FieldDescriptor: key,
 			})
 		}
+		
+		// 联合索引字段不需要添加到Indexes中，它们会通过UnionIndexes单独处理
 
 		// 添加到All切片
 		fm.All = append(fm.All, &rm)
 
-		// 如果有索引，添加到IndexedStructs切片
-		if len(fd.Complex.Indexes) > 0 {
+		// 如果有索引或联合索引，添加到IndexedStructs切片
+		if len(fd.Complex.Indexes) > 0 || len(fd.Complex.UnionIndexes) > 0 {
 			fm.IndexedStructs = append(fm.IndexedStructs, &rm)
 		}
 	}

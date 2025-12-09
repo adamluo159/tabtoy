@@ -192,6 +192,7 @@ func (self *Globals) AddContent(tab *model.Table) bool {
 			continue
 		}
 
+		// 处理单字段索引
 		for _, indexFD := range d.Indexes {
 
 			key := TableIndex{
@@ -201,6 +202,23 @@ func (self *Globals) AddContent(tab *model.Table) bool {
 
 			self.GlobalIndexes = append(self.GlobalIndexes, key)
 
+		}
+
+		// 处理联合索引
+		for _, unionFields := range d.UnionIndexes {
+			// 联合索引需要至少两个字段
+			if len(unionFields) < 2 {
+				continue
+			}
+			
+			// 将联合索引的所有字段添加到GlobalIndexes
+			for _, indexFD := range unionFields {
+				key := TableIndex{
+					Row:   rowFD,
+					Index: indexFD,
+				}
+				self.GlobalIndexes = append(self.GlobalIndexes, key)
+			}
 		}
 
 	}
