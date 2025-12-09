@@ -21,6 +21,7 @@ import(
 	{{if .HasAnyIndex}}"fmt"{{end}}
 	"encoding/json"
 	"os"
+	"sync/atomic"
 )
 {{range $a, $en := .Enums}} 
 // Defined in table: {{$en.DefinedTable}}
@@ -64,9 +65,9 @@ type {{$strus.Name}} struct{
 
 // {{$.Name}} 访问接口
 type {{$.Name}}Table struct{
-	
-	// 表格原始数据
-	{{$.Name}}
+    
+	// 数据指针，使用原子操作进行更新
+	data atomic.Pointer[{{$.Name}}Data]
 	
 	// 索引函数表
 	indexFuncByName map[string][]func(*{{$.Name}}Table) error
@@ -79,6 +80,15 @@ type {{$.Name}}Table struct{
 
 	// 加载后回调
 	postFuncList []func(*{{$.Name}}Table) error
+}
+
+// {{$.Name}} 数据结构体，用于写时复制
+// 此结构体一旦创建，不应被修改
+// 所有修改都通过创建新实例并原子替换data指针来实现
+type {{$.Name}}Data struct{
+	
+	// 表格原始数据
+	{{$.Name}}
 	
 	{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
 	{{$strus.Name}}By{{.Name}} map[{{.KeyType}}]*{{$strus.TypeName}}
@@ -90,26 +100,26 @@ type {{$.Name}}Table struct{
 {{range .VerticalFields}}
 {{.Comment}}
 func (self *{{$.Name}}Table) Get{{.Name}}( ) {{.ElementTypeString}} {
-	return self.{{.Name}}[0]
+	return self.data.Load().{{.Name}}[0]
 }
 {{end}}
 
 {{range .AllStructs}}
 /** 获取{{.TypeName}}列表 */
 func (self *{{$.Name}}Table) Get{{.TypeName}}s( ) []*{{.TypeName}} {
-	return self.{{.Name}}
+	return self.data.Load().{{.Name}}
 }
 {{end}}
 
 {{range $strus := .IndexedStructs}} {{range .Indexes}}
 /** 通过{{.Name}}获取{{$strus.TypeName}} */
 func (self *{{$.Name}}Table) Get{{$strus.TypeName}}By{{.Name}}(key {{.KeyType}}) *{{$strus.TypeName}} {
-	return self.{{$strus.Name}}By{{.Name}}[key]
+	return self.data.Load().{{$strus.Name}}By{{.Name}}[key]
 }
 {{end}}{{if gt (len .Indexes) 1}}
 /** 通过{{(index .Indexes 0).Name}}和{{(index .Indexes 1).Name}}获取{{$strus.TypeName}} */
 func (self *{{$.Name}}Table) Get{{$strus.TypeName}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}(k1 {{(index .Indexes 0).KeyType}}, k2 {{(index .Indexes 1).KeyType}}) *{{$strus.TypeName}} {
-	return self.{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }{K1: k1, K2: k2}]
+	return self.data.Load().{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}}[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }{K1: k1, K2: k2}]
 }
 {{end}}{{end}}
 
@@ -127,15 +137,16 @@ func (self *{{$.Name}}Table) Load(filename string) error {
 
 // 从目录加载拆分的json文件
 func (self *{{$.Name}}Table) LoadFromDir(dir string) error {
-	// 清除前通知
-	for _, list := range self.clearFuncByName {
-		for _, v := range list {
-			if err := v(self); err != nil {
-				return err
-			}
-		}
-	}
-
+	// 创建新的数据实例
+	newData := &{{$.Name}}Data{}
+	
+	// 创建所有索引映射
+	{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
+	newData.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}})
+	{{end}}{{if gt (len .Indexes) 1}}
+	newData.{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} = make(map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}})
+	{{end}}{{end}}
+	
 	// 所有加载前的回调
 	for _, v := range self.preFuncList {
 		if err := v(self); err != nil {
@@ -156,14 +167,20 @@ func (self *{{$.Name}}Table) LoadFromDir(dir string) error {
 		if err := json.Unmarshal(data, &items); err != nil {
 			return fmt.Errorf("unmarshal %s failed: %w", filename, err)
 		}
-		self.{{$strus.Name}} = items
+		newData.{{$strus.Name}} = items
 	}
 	{{end}}
 
 	// 生成索引
 	for _, list := range self.indexFuncByName {
 		for _, v := range list {
-			if err := v(self); err != nil {
+			// 创建临时表实例，用于索引生成
+			tempTable := &{{$.Name}}Table{
+				data: atomic.Pointer[{{$.Name}}Data]{},
+			}
+			tempTable.data.Store(newData)
+			
+			if err := v(tempTable); err != nil {
 				return err
 			}
 		}
@@ -176,12 +193,14 @@ func (self *{{$.Name}}Table) LoadFromDir(dir string) error {
 		}
 	}
 
+	// 原子替换数据指针
+	self.data.Store(newData)
+
 	return nil
 }
 
 // 从二进制加载
 func (self *{{$.Name}}Table) LoadData(data []byte) error {
-
 	var newTab {{$.Name}}
 
 	// 读取
@@ -190,6 +209,18 @@ func (self *{{$.Name}}Table) LoadData(data []byte) error {
 		return err
 	}
 
+	// 创建新的数据实例
+	newData := &{{$.Name}}Data{
+		{{$.Name}}: newTab,
+	}
+	
+	// 创建所有索引映射
+	{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
+	newData.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}})
+	{{end}}{{if gt (len .Indexes) 1}}
+	newData.{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} = make(map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}})
+	{{end}}{{end}}
+
 	// 所有加载前的回调
 	for _, v := range self.preFuncList {
 		if err = v(self); err != nil {
@@ -197,22 +228,16 @@ func (self *{{$.Name}}Table) LoadData(data []byte) error {
 		}
 	}
 	
-	// 清除前通知
-	for _, list := range self.clearFuncByName {
-		for _, v := range list {
-			if err = v(self); err != nil {
-				return err
-			}
-		}
-	}
-
-	// 复制数据
-	self.{{$.Name}} = newTab
-
 	// 生成索引
 	for _, list := range self.indexFuncByName {
 		for _, v := range list {
-			if err = v(self); err != nil {
+			// 创建临时表实例，用于索引生成
+			tempTable := &{{$.Name}}Table{
+				data: atomic.Pointer[{{$.Name}}Data]{},
+			}
+			tempTable.data.Store(newData)
+			
+			if err = v(tempTable); err != nil {
 				return err
 			}
 		}
@@ -225,25 +250,22 @@ func (self *{{$.Name}}Table) LoadData(data []byte) error {
 		}
 	}
 
+	// 原子替换数据指针
+	self.data.Store(newData)
+
 	return nil
 }
 
-// 注册外部索引入口, 索引回调, 清空回调
-func (self *{{$.Name}}Table) RegisterIndexEntry(name string, indexCallback func(*{{$.Name}}Table) error, clearCallback func(*{{$.Name}}Table)error) {
-
-	indexList, _ := self.indexFuncByName[name]
-	clearList, _ := self.clearFuncByName[name]
-
-	if indexCallback != nil {
-		indexList = append(indexList, indexCallback)
+// 注册外部索引入口, 索引回调
+// 注意: 清空回调在写时复制策略下已不再需要，会被忽略
+func (self *{{$.Name}}Table) RegisterIndexEntry(name string, indexCallback func(*{{$.Name}}Table) error, _ func(*{{$.Name}}Table)error) {
+	if indexCallback == nil {
+		return
 	}
-
-	if clearCallback != nil {
-		clearList = append(clearList, clearCallback)
-	}
-
+	
+	indexList := self.indexFuncByName[name]
+	indexList = append(indexList, indexCallback)
 	self.indexFuncByName[name] = indexList
-	self.clearFuncByName[name] = clearList
 }
 
 // 注册加载前回调
@@ -253,41 +275,50 @@ func (self *{{$.Name}}Table) RegisterPreEntry(callback func(*{{$.Name}}Table) er
 
 // 注册所有完成时回调
 func (self *{{$.Name}}Table) RegisterPostEntry(callback func(*{{$.Name}}Table) error) {
-
 	self.postFuncList = append(self.postFuncList, callback)
 }
 
 // 创建一个{{$.Name}}表读取实例
 func New{{$.Name}}Table() *{{$.Name}}Table {
-	return &{{$.Name}}Table{
+	// 创建初始数据实例
+	initialData := &{{$.Name}}Data{}
+	
+	// 初始化所有索引映射
+	{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
+	initialData.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}})
+	{{end}}{{if gt (len .Indexes) 1}}
+	initialData.{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} = make(map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}})
+	{{end}}{{end}}
+	
+	table := &{{$.Name}}Table{
 		indexFuncByName: map[string][]func(*{{$.Name}}Table) error{
 		{{range $a, $strus := .IndexedStructs}}
 		"{{$strus.Name}}": {func(tab *{{$.Name}}Table)error {
 			
 			// {{$strus.Name}}
-			for _, def := range tab.{{$strus.Name}} {
+			data := tab.data.Load()
+			for _, def := range data.{{$strus.Name}} {
 				{{range .Indexes}}
-				if _, ok := tab.{{$strus.Name}}By{{.Name}}[def.{{.Name}}]; ok {
+				if _, ok := data.{{$strus.Name}}By{{.Name}}[def.{{.Name}}]; ok {
 					panic(fmt.Sprintf("duplicate index in {{$strus.Name}}By{{.Name}}: %v", def.{{.Name}}))
 				}
 				{{end}}		
 				{{range .Indexes}}
-				tab.{{$strus.Name}}By{{.Name}}[def.{{.Name}}] = def{{end}}
+				data.{{$strus.Name}}By{{.Name}}[def.{{.Name}}] = def{{end}}
 				{{if gt (len .Indexes) 1}}
 			{{$idx1 := index .Indexes 0}}
 			{{$idx2 := index .Indexes 1}}
 			key := struct{ K1 {{$idx1.KeyType}}; K2 {{$idx2.KeyType}} }{K1: def.{{$idx1.Name}}, K2: def.{{$idx2.Name}}}
-			if _, ok := tab.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key]; ok {
+			if _, ok := data.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key]; ok {
 				panic(fmt.Sprintf("duplicate index in {{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}: %v", key))
 			}
-			tab.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key] = def
+			data.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key] = def
 			{{end}}
 			}
 
 			return nil
 		}},
-	{{end}}
-		
+	{{end}}		
 			
 		},
 		
@@ -295,25 +326,18 @@ func New{{$.Name}}Table() *{{$.Name}}Table {
 		
 		{{range $a, $strus := .IndexedStructs}}
 		"{{$strus.Name}}": {func(tab *{{$.Name}}Table) error{
-			
-			// {{$strus.Name}}
-		
-			{{range .Indexes}}
-			tab.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}}){{end}}
-			{{if gt (len .Indexes) 1}}
-			tab.{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} = make(map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}}){{end}}
-
+			// 注意：这个函数在写时复制策略下已经不再需要
+			// 因为我们总是创建新的数据实例
 			return nil
 		}},
 	{{end}}		
 		},
-
-		{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
-		{{$strus.Name}}By{{.Name}} : make(map[{{.KeyType}}]*{{$strus.TypeName}}),
-		{{end}}{{if gt (len .Indexes) 1}}
-		{{$strus.Name}}By{{(index .Indexes 0).Name}}{{(index .Indexes 1).Name}} : make(map[struct{ K1 {{(index .Indexes 0).KeyType}}; K2 {{(index .Indexes 1).KeyType}} }]*{{$strus.TypeName}}),
-		{{end}}{{end}}
 	}
+	
+	// 原子存储初始数据
+	table.data.Store(initialData)
+	
+	return table
 }
 `
 

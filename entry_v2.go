@@ -60,8 +60,10 @@ func V2Entry() {
 		g.AddOutputType("pbt", *paramPbtOut)
 	}
 
-	if *paramJsonOut != "" {
-		g.AddOutputType("json", *paramJsonOut)
+	if *paramJsonOut != "" || *paramJsonDir != "" {
+		// 当只使用-json_dir参数时，输出文件路径可以设为空字符串
+		jsonOut := *paramJsonOut
+		g.AddOutputType("json", jsonOut)
 	}
 
 	if *paramLuaOut != "" {

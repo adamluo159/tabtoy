@@ -18,6 +18,6 @@ mkdir -p "$json_dir"
 echo "开始生成代码..."
 
 # 使用-json_out参数输出单个JSON文件
-./tabtoy -mode=v2 -json_out="$output_dir/table.json" -json_dir="$json_dir" -go_out="$go_out" -ts_out="$ts_out" -package="$package" "$excel_dir"/*.xlsx
+./tabtoy -mode=v2   -json_dir="$json_dir" -go_out="$go_out" -ts_out="$ts_out" -package="$package" "$excel_dir"/*.xlsx
 
  
