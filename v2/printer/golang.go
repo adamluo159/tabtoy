@@ -71,10 +71,7 @@ type {{$.Name}}Table struct{
 	
 	// 索引函数表
 	indexFuncByName map[string][]func(*{{$.Name}}Table) error
-
-	// 清空函数表
-	clearFuncByName map[string][]func(*{{$.Name}}Table) error
-
+	
 	// 加载前回调
 	preFuncList []func(*{{$.Name}}Table) error
 
@@ -186,15 +183,15 @@ func (self *{{$.Name}}Table) LoadFromDir(dir string) error {
 		}
 	}
 
+	// 原子替换数据指针
+	self.data.Store(newData)
+
 	// 所有完成时的回调
 	for _, v := range self.postFuncList {
 		if err := v(self); err != nil {
 			return err
 		}
 	}
-
-	// 原子替换数据指针
-	self.data.Store(newData)
 
 	return nil
 }
@@ -243,6 +240,9 @@ func (self *{{$.Name}}Table) LoadData(data []byte) error {
 		}
 	}
 
+	// 原子替换数据指针
+	self.data.Store(newData)
+
 	// 所有完成时的回调
 	for _, v := range self.postFuncList {
 		if err = v(self); err != nil {
@@ -250,15 +250,11 @@ func (self *{{$.Name}}Table) LoadData(data []byte) error {
 		}
 	}
 
-	// 原子替换数据指针
-	self.data.Store(newData)
-
 	return nil
 }
 
 // 注册外部索引入口, 索引回调
-// 注意: 清空回调在写时复制策略下已不再需要，会被忽略
-func (self *{{$.Name}}Table) RegisterIndexEntry(name string, indexCallback func(*{{$.Name}}Table) error, _ func(*{{$.Name}}Table)error) {
+func (self *{{$.Name}}Table) RegisterIndexEntry(name string, indexCallback func(*{{$.Name}}Table) error) {
 	if indexCallback == nil {
 		return
 	}
@@ -300,17 +296,17 @@ func New{{$.Name}}Table() *{{$.Name}}Table {
 			for _, def := range data.{{$strus.Name}} {
 				{{range .Indexes}}
 				if _, ok := data.{{$strus.Name}}By{{.Name}}[def.{{.Name}}]; ok {
-					panic(fmt.Sprintf("duplicate index in {{$strus.Name}}By{{.Name}}: %v", def.{{.Name}}))
+					return fmt.Errorf("duplicate index in {{$strus.Name}}By{{.Name}}: %v", def.{{.Name}})
 				}
 				{{end}}		
 				{{range .Indexes}}
-				data.{{$strus.Name}}By{{.Name}}[def.{{.Name}}] = def{{end}}
+			data.{{$strus.Name}}By{{.Name}}[def.{{.Name}}] = def{{end}}
 				{{if gt (len .Indexes) 1}}
 			{{$idx1 := index .Indexes 0}}
 			{{$idx2 := index .Indexes 1}}
 			key := struct{ K1 {{$idx1.KeyType}}; K2 {{$idx2.KeyType}} }{K1: def.{{$idx1.Name}}, K2: def.{{$idx2.Name}}}
 			if _, ok := data.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key]; ok {
-				panic(fmt.Sprintf("duplicate index in {{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}: %v", key))
+				return fmt.Errorf("duplicate index in {{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}: %v", key)
 			}
 			data.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key] = def
 			{{end}}
@@ -318,19 +314,8 @@ func New{{$.Name}}Table() *{{$.Name}}Table {
 
 			return nil
 		}},
-	{{end}}		
+	{{end}}			
 			
-		},
-		
-		clearFuncByName: map[string][]func(*{{$.Name}}Table)error{
-		
-		{{range $a, $strus := .IndexedStructs}}
-		"{{$strus.Name}}": {func(tab *{{$.Name}}Table) error{
-			// 注意：这个函数在写时复制策略下已经不再需要
-			// 因为我们总是创建新的数据实例
-			return nil
-		}},
-	{{end}}		
 		},
 	}
 	

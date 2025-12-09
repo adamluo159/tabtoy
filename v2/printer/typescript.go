@@ -84,12 +84,14 @@ export class TableAccessor {
                 {{range $a, $strus := .All}}
                 case "{{$strus.Name}}":
                     this.data.{{$strus.Name}} = JSON.parse(data) as {{$strus.TypeName}}[];
+                    {{if gt (len $strus.Indexes) 0}}
+                    this.build{{$strus.TypeName}}Indexes();
+                    {{end}}
                     break;
                 {{end}}
                 default:
                     return false;
             }
-            this.buildAllIndexes();
             return true;
         } catch (e) {
             return false;
@@ -143,12 +145,12 @@ export class TableAccessor {
     }
     {{end}}{{end}}
 
-    {{range $a, $strus := .All}}
+    {{range $a, $strus := .All}}{{if not $strus.IsVertical}}
     /**获取{{$strus.TypeName}}列表 */    
     get{{$strus.TypeName}}s(): {{$strus.TypeName}}[] {
         return this.data.{{$strus.Name}};
     }    
-    {{end}}
+    {{end}}{{end}}
     {{range $a, $strus := .All}}{{if $strus.IsVertical}}
     /**获取{{$strus.TypeName}}配置 */    
     get{{$strus.TypeName}}(): {{$strus.TypeName}} {
@@ -274,28 +276,26 @@ func collectTSIndexInfo(g *Globals, fm *tsFileModel) {
 			continue
 		}
 
-		// if fd.Complex.File.Pragma.GetBool("Vertical") {
-		// 	fm.Verticals = append(fm.Verticals, &tsIndexedStructModel{FieldDescriptor: fd})
-		// 	continue
-		// }
-
-		fm.All = append(fm.All, &tsIndexedStructModel{
+		// 创建索引结构体模型
+		rm := tsIndexedStructModel{
 			FieldDescriptor: fd,
 			IsVertical:      fd.Complex.File.Pragma.GetBool("Vertical"),
-		})
-		if len(fd.Complex.Indexes) == 0 {
-			continue
 		}
 
-		rm := tsIndexedStructModel{FieldDescriptor: fd}
-
+		// 设置索引字段
 		for _, key := range fd.Complex.Indexes {
 			rm.Indexes = append(rm.Indexes, &tsFieldModel{
 				FieldDescriptor: key,
 			})
 		}
 
-		fm.IndexedStructs = append(fm.IndexedStructs, &rm)
+		// 添加到All切片
+		fm.All = append(fm.All, &rm)
+
+		// 如果有索引，添加到IndexedStructs切片
+		if len(fd.Complex.Indexes) > 0 {
+			fm.IndexedStructs = append(fm.IndexedStructs, &rm)
+		}
 	}
 }
 
