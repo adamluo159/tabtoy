@@ -150,7 +150,7 @@ func (self *jsonPrinter) Run(g *Globals) *Stream {
 			log.Infof("[json] %s", outputPath)
 		}
 		
-		// 返回空流，表示已经处理完成
+		// 返回空流，表示已经处理完成，不需要再写入合并的JSON文件
 		return NewStream()
 	}
 	

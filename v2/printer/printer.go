@@ -16,6 +16,11 @@ func (self *PrinterContext) Start(g *Globals) bool {
 		return false
 	}
 
+	// 当使用-json_dir参数且当前是JSON打印机时，跳过写入合并的JSON文件
+	if self.name == "json" && g.JsonDir != "" {
+		return true
+	}
+
 	return bf.WriteFile(self.outFile) == nil
 }
 
