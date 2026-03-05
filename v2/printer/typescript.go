@@ -85,7 +85,7 @@ export class TableAccessor {
                 {{range $a, $strus := .All}}
                 case "{{$strus.Name}}":
                     this.data.{{$strus.Name}} = JSON.parse(data) as {{$strus.TypeName}}[];
-                    {{if gt (len $strus.Indexes) 0}}
+                    {{if or (gt (len $strus.Indexes) 0) (gt (len $strus.Complex.UnionIndexes) 0)}}
                     this.build{{$strus.TypeName}}Indexes();
                     {{end}}
                     break;
@@ -140,7 +140,14 @@ export class TableAccessor {
     get{{$strus.TypeName}}By{{.Name}}(key: {{.KeyType}}): {{$strus.TypeName}} | undefined {
         return this.{{$strus.TypeName}}By{{.Name}}.get(key);
     }
-    {{end}}{{end}}
+    {{end}}{{end}}{{/* 联合索引访问方法 - 基于UnionIndex标记 */}}
+    {{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+    /** 通过{{(index $unionFields 0).Name}}和{{(index $unionFields 1).Name}}获取{{$strus.TypeName}} */
+    get{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}(key1: number, key2: number): {{$strus.TypeName}} | undefined {
+        const combinedKey = key1 + "|" + key2;
+        return this.{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}.get(combinedKey);
+    }
+    {{end}}{{end}}{{end}}
 
     {{range $a, $strus := .All}}{{if not $strus.IsVertical}}
     /**获取{{$strus.TypeName}}列表 */    

@@ -306,20 +306,17 @@ func New{{$.Name}}Table() *{{$.Name}}Table {
 			data.{{$strus.Name}}By{{.Name}}[def.{{.Name}}] = def
 			{{end}}
 				{{/* 联合索引构建逻辑 - 基于UnionIndex标记 */}}
-			{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}
-			{{if gt (len $unionFields) 1}}
-			{{$idx1 := index $unionFields 0}}
-			{{$idx2 := index $unionFields 1}}
-			{{/* 安全检查：确保$idx1.Parent不为nil */}}
-			{{if and $idx1.Parent (eq $strus.Name $idx1.Parent.Name)}}
-			key := struct{ K1 int32; K2 int32 }{K1: def.{{$idx1.Name}}, K2: def.{{$idx2.Name}}}
-			if _, ok := data.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key]; ok {
-				return fmt.Errorf("duplicate index in {{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}: %v", key)
-			}
-			data.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key] = def
-			{{end}}
-			{{end}}
-			{{end}}
+				{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}
+				{{if gt (len $unionFields) 1}}
+				{{$idx1 := index $unionFields 0}}
+				{{$idx2 := index $unionFields 1}}
+				key := struct{ K1 int32; K2 int32 }{K1: def.{{$idx1.Name}}, K2: def.{{$idx2.Name}}}
+				if _, ok := data.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key]; ok {
+					return fmt.Errorf("duplicate index in {{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}: %v", key)
+				}
+				data.{{$strus.Name}}By{{$idx1.Name}}{{$idx2.Name}}[key] = def
+				{{end}}
+				{{end}}
 			}
 
 			return nil
@@ -520,8 +517,10 @@ func collectIndexInfo(g *Globals, fm *goFileModel) {
 			continue
 		}
 
-		rm := goIndexStructModel{FieldDescriptor: fd}
-		
+		rm := goIndexStructModel{
+			FieldDescriptor: fd,
+		}
+
 		// 只收集单个索引字段，联合索引字段不生成单独索引
 		for _, key := range fd.Complex.Indexes {
 
