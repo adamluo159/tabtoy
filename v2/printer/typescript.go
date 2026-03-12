@@ -54,7 +54,7 @@ export class TableAccessor {
     private {{$strus.TypeName}}By{{.Name}} = new Map<{{.KeyType}}, {{$strus.TypeName}}>();
     {{end}}{{end}}{{/* 联合索引字段定义 - 基于UnionIndex标记 */}}
     {{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
-    private {{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}} = new Map<string, {{$strus.TypeName}}>();
+    private {{$strus.TypeName}}By{{range $i, $field := $unionFields}}{{$field.Name}}{{end}} = new Map<string, {{$strus.TypeName}}>();
     {{end}}{{end}}{{end}}
 
     /** 构造函数 */
@@ -113,7 +113,7 @@ export class TableAccessor {
         {{end}}
         {{/* 联合索引清除 */}}
         {{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
-        this.{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}.clear();
+        this.{{$strus.TypeName}}By{{range $i, $field := $unionFields}}{{$field.Name}}{{end}}.clear();
         {{end}}{{end}}
         
         for (const item of this.data.{{$strus.Name}}) {
@@ -125,11 +125,11 @@ export class TableAccessor {
             {{end}}
             {{/* 联合索引构建 */}}
             {{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
-            const combinedKey = item.{{(index $unionFields 0).Name}} + "|" + item.{{(index $unionFields 1).Name}};
-            if (this.{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}.has(combinedKey)) {
-                throw new Error("Duplicate combined index in {{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}: " + combinedKey);
+            const combinedKey = {{range $i, $field := $unionFields}}{{if $i}} + "|" + {{end}}item.{{$field.Name}}{{end}};
+            if (this.{{$strus.TypeName}}By{{range $i, $field := $unionFields}}{{$field.Name}}{{end}}.has(combinedKey)) {
+                throw new Error("Duplicate combined index in {{$strus.TypeName}}By{{range $i, $field := $unionFields}}{{$field.Name}}{{end}}: " + combinedKey);
             }
-            this.{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}.set(combinedKey, item);
+            this.{{$strus.TypeName}}By{{range $i, $field := $unionFields}}{{$field.Name}}{{end}}.set(combinedKey, item);
             {{end}}{{end}}
         }
     }
@@ -142,10 +142,10 @@ export class TableAccessor {
     }
     {{end}}{{end}}{{/* 联合索引访问方法 - 基于UnionIndex标记 */}}
     {{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
-    /** 通过{{(index $unionFields 0).Name}}和{{(index $unionFields 1).Name}}获取{{$strus.TypeName}} */
-    get{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}(key1: number, key2: number): {{$strus.TypeName}} | undefined {
-        const combinedKey = key1 + "|" + key2;
-        return this.{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}.get(combinedKey);
+    /** 通过{{range $i, $field := $unionFields}}{{if $i}}和{{end}}{{$field.Name}}{{end}}获取{{$strus.TypeName}} */
+    get{{$strus.TypeName}}By{{range $i, $field := $unionFields}}{{$field.Name}}{{end}}({{range $i, $field := $unionFields}}{{if $i}}, {{end}}key{{add $i 1}}: number{{end}}): {{$strus.TypeName}} | undefined {
+        const combinedKey = {{range $i, $field := $unionFields}}{{if $i}} + "|" + {{end}}key{{add $i 1}}{{end}};
+        return this.{{$strus.TypeName}}By{{range $i, $field := $unionFields}}{{$field.Name}}{{end}}.get(combinedKey);
     }
     {{end}}{{end}}{{end}}
 
@@ -292,7 +292,7 @@ func collectTSIndexInfo(g *Globals, fm *tsFileModel) {
 				FieldDescriptor: key,
 			})
 		}
-		
+
 		// 联合索引字段不需要添加到Indexes中，它们会通过UnionIndexes单独处理
 
 		// 添加到All切片
@@ -343,7 +343,11 @@ func collectAllTSStructInfo(g *Globals, fm *tsFileModel) {
 type tsPrinter struct{}
 
 func (self *tsPrinter) Run(g *Globals) *Stream {
-	tpl, err := template.New("typescript").Parse(tsTemplate)
+	tpl, err := template.New("typescript").Funcs(template.FuncMap{
+		"add": func(a, b int) int {
+			return a + b
+		},
+	}).Parse(tsTemplate)
 	if err != nil {
 		log.Errorln("parse typescript template failed:", err)
 		return nil
