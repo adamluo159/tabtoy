@@ -86,8 +86,13 @@ func (self *DataHeaderElement) Parse(def *model.FieldDescriptor, localFD *model.
 		break
 	}
 
-	// 依然找不到, 报错
-	if def.Type == model.FieldType_None {
+	// 依然找不到, 尝试延迟解析map类型
+	if def.Type == model.FieldType_None && strings.HasPrefix(self.FieldType, "map<") {
+		// 标记为map类型，稍后在延迟解析中处理
+		def.Type = model.FieldType_Map
+		def.RawFieldType = self.FieldType
+	} else if def.Type == model.FieldType_None {
+		// 依然找不到, 报错
 		log.Errorf("%s, '%s' (%s) raw: %s", i18n.String(i18n.DataHeader_TypeNotFound), def.Name, model.FieldTypeToString(def.Type), self.FieldType)
 		return DataSheetHeader_FieldType
 	}

@@ -214,10 +214,60 @@ func (self *tsFieldModel) ElementTypeString() string {
 }
 
 func (self *tsFieldModel) TypeString() string {
+	if self.Type == model.FieldType_Map {
+		return self.MapTypeString()
+	}
 	if self.IsRepeated {
 		return self.ElementTypeString() + "[]"
 	}
 	return self.ElementTypeString()
+}
+
+func (self *tsFieldModel) MapTypeString() string {
+	keyType := self.mapKeyTsType()
+	valueType := self.mapValueTsType()
+	return "Record<" + keyType + ", " + valueType + ">"
+}
+
+func (self *tsFieldModel) mapKeyTsType() string {
+	switch self.MapKeyType {
+	case model.FieldType_Int32, model.FieldType_Int64, model.FieldType_UInt32, model.FieldType_UInt64, model.FieldType_Float:
+		return "number"
+	case model.FieldType_String:
+		return "string"
+	case model.FieldType_Bool:
+		return "boolean"
+	case model.FieldType_Enum:
+		if self.MapKeyComplex != nil {
+			return self.MapKeyComplex.Name
+		}
+		return "number"
+	default:
+		return "any"
+	}
+}
+
+func (self *tsFieldModel) mapValueTsType() string {
+	switch self.MapValueType {
+	case model.FieldType_Int32, model.FieldType_Int64, model.FieldType_UInt32, model.FieldType_UInt64, model.FieldType_Float:
+		return "number"
+	case model.FieldType_String:
+		return "string"
+	case model.FieldType_Bool:
+		return "boolean"
+	case model.FieldType_Enum:
+		if self.MapValueComplex != nil {
+			return self.MapValueComplex.Name
+		}
+		return "number"
+	case model.FieldType_Struct:
+		if self.MapValueComplex != nil {
+			return self.MapValueComplex.Name
+		}
+		return "any"
+	default:
+		return "any"
+	}
 }
 
 // TypeScript 索引结构模型
@@ -232,6 +282,82 @@ func (self *tsIndexedStructModel) TypeName() string {
 }
 func (self *tsIndexedStructModel) HasAnyIndex() bool {
 	return len(self.FieldDescriptor.Complex.Indexes) > 0
+}
+
+func (self *tsIndexedStructModel) TypeString() string {
+	if self.Type == model.FieldType_Map {
+		return self.mapTypeString()
+	}
+	if self.IsRepeated {
+		return self.elementTypeString() + "[]"
+	}
+	return self.elementTypeString()
+}
+
+func (self *tsIndexedStructModel) elementTypeString() string {
+	switch self.Type {
+	case model.FieldType_Enum:
+		return self.Complex.Name
+	case model.FieldType_Struct:
+		return self.Complex.Name
+	case model.FieldType_Float:
+		return "number"
+	case model.FieldType_Int32:
+		return "number"
+	case model.FieldType_String:
+		return "string"
+	case model.FieldType_Bool:
+		return "boolean"
+	default:
+		return "any"
+	}
+}
+
+func (self *tsIndexedStructModel) mapTypeString() string {
+	keyType := self.mapKeyTsType()
+	valueType := self.mapValueTsType()
+	return "Record<" + keyType + ", " + valueType + ">"
+}
+
+func (self *tsIndexedStructModel) mapKeyTsType() string {
+	switch self.MapKeyType {
+	case model.FieldType_Int32, model.FieldType_Int64, model.FieldType_UInt32, model.FieldType_UInt64, model.FieldType_Float:
+		return "number"
+	case model.FieldType_String:
+		return "string"
+	case model.FieldType_Bool:
+		return "boolean"
+	case model.FieldType_Enum:
+		if self.MapKeyComplex != nil {
+			return self.MapKeyComplex.Name
+		}
+		return "number"
+	default:
+		return "any"
+	}
+}
+
+func (self *tsIndexedStructModel) mapValueTsType() string {
+	switch self.MapValueType {
+	case model.FieldType_Int32, model.FieldType_Int64, model.FieldType_UInt32, model.FieldType_UInt64, model.FieldType_Float:
+		return "number"
+	case model.FieldType_String:
+		return "string"
+	case model.FieldType_Bool:
+		return "boolean"
+	case model.FieldType_Enum:
+		if self.MapValueComplex != nil {
+			return self.MapValueComplex.Name
+		}
+		return "number"
+	case model.FieldType_Struct:
+		if self.MapValueComplex != nil {
+			return self.MapValueComplex.Name
+		}
+		return "any"
+	default:
+		return "any"
+	}
 }
 
 // TypeScript 结构体模型

@@ -19,6 +19,7 @@ const (
 	FieldType_Enum   FieldType = 8
 	FieldType_Struct FieldType = 9
 	FieldType_Table  FieldType = 10 // 表格, 仅限二进制使用
+	FieldType_Map    FieldType = 11 // map类型
 )
 
 // 一列的描述
@@ -40,6 +41,13 @@ type FieldDescriptor struct {
 	Comment string // 注释
 
 	Parent *Descriptor
+
+	MapKeyType   FieldType   // map的key类型
+	MapKeyComplex *Descriptor // map的key复杂类型(枚举)
+	MapValueType FieldType   // map的value类型
+	MapValueComplex *Descriptor // map的value复杂类型(枚举或结构体)
+
+	RawFieldType string // 原始类型字符串，用于延迟解析
 }
 
 func NewFieldDescriptor() *FieldDescriptor {
@@ -169,6 +177,21 @@ func (self *FieldDescriptor) RepeatCheck() bool {
 	return self.Meta.GetBool("RepeatCheck")
 }
 
+func (self *FieldDescriptor) MapSpliter() string {
+
+	return self.Meta.GetString("MapSpliter")
+}
+
+func (self *FieldDescriptor) MapKeyField() string {
+
+	return self.Meta.GetString("MapKeyField")
+}
+
+func (self *FieldDescriptor) IsMap() bool {
+
+	return self.Type == FieldType_Map
+}
+
 var tsStrByFieldDescriptor = map[FieldType]string{
 	FieldType_None:   "none",
 	FieldType_Int32:  "number",
@@ -181,6 +204,7 @@ var tsStrByFieldDescriptor = map[FieldType]string{
 	FieldType_Bool:   "bool",
 	FieldType_Enum:   "enum",
 	FieldType_Struct: "struct",
+	FieldType_Map:    "map",
 }
 
 func FieldTypeToTsString(t FieldType) string {
@@ -203,6 +227,7 @@ var strByFieldDescriptor = map[FieldType]string{
 	FieldType_Bool:   "bool",
 	FieldType_Enum:   "enum",
 	FieldType_Struct: "struct",
+	FieldType_Map:    "map",
 }
 
 var fieldTypeByString = make(map[string]FieldType)
@@ -226,6 +251,8 @@ const RepeatedKeywordLen = len(RepeatedKeyword)
 const SliceKeyword = "[]"
 const SliceKeywordLen = len(SliceKeyword)
 
+const MapKeyword = "map<"
+
 func (self *FieldDescriptor) ParseType(fileD *FileDescriptor, rawstr string) bool {
 
 	var puretype string
@@ -239,6 +266,8 @@ func (self *FieldDescriptor) ParseType(fileD *FileDescriptor, rawstr string) boo
 		puretype = rawstr[SliceKeywordLen:]
 
 		self.IsRepeated = true
+	} else if strings.HasPrefix(rawstr, MapKeyword) {
+		return self.parseMapType(fileD, rawstr)
 	} else {
 		puretype = rawstr
 	}
@@ -251,7 +280,6 @@ func (self *FieldDescriptor) ParseType(fileD *FileDescriptor, rawstr string) boo
 	if desc, ok := fileD.DescriptorByName[puretype]; ok {
 		self.Complex = desc
 
-		// 根据内建类型转成字段类型
 		switch desc.Kind {
 		case DescriptorKind_Struct:
 			self.Type = FieldType_Struct
@@ -263,6 +291,53 @@ func (self *FieldDescriptor) ParseType(fileD *FileDescriptor, rawstr string) boo
 		return false
 	}
 
+	return true
+}
+
+func (self *FieldDescriptor) parseMapType(fileD *FileDescriptor, rawstr string) bool {
+	if !strings.HasSuffix(rawstr, ">") {
+		return false
+	}
+
+	inner := rawstr[4 : len(rawstr)-1]
+	parts := strings.Split(inner, ",")
+	if len(parts) != 2 {
+		return false
+	}
+
+	keyType := strings.TrimSpace(parts[0])
+	valueType := strings.TrimSpace(parts[1])
+
+	if ft, ok := ParseFieldType(keyType); ok {
+		self.MapKeyType = ft
+	} else if desc, ok := fileD.DescriptorByName[keyType]; ok {
+		self.MapKeyComplex = desc
+		if desc.Kind == DescriptorKind_Enum {
+			self.MapKeyType = FieldType_Enum
+		} else {
+			return false
+		}
+	} else {
+		// key类型不存在，返回false，稍后延迟解析
+		return false
+	}
+
+	if ft, ok := ParseFieldType(valueType); ok {
+		self.MapValueType = ft
+	} else if desc, ok := fileD.DescriptorByName[valueType]; ok {
+		self.MapValueComplex = desc
+		switch desc.Kind {
+		case DescriptorKind_Struct:
+			self.MapValueType = FieldType_Struct
+		case DescriptorKind_Enum:
+			self.MapValueType = FieldType_Enum
+		}
+	} else {
+		// value类型不存在，返回false，稍后延迟解析
+		return false
+	}
+
+	self.Type = FieldType_Map
 	return true
 }
 

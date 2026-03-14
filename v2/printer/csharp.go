@@ -310,10 +310,14 @@ func (self csharpField) TypeCode() string {
 
 		raw = self.Complex.Name
 
-		// 非repeated的结构体
 		if !self.IsRepeated {
 			return fmt.Sprintf("public %s %s = new %s();", raw, self.Name, raw)
 		}
+
+	case model.FieldType_Map:
+		keyType := self.mapKeyCSharpType()
+		valueType := self.mapValueCSharpType()
+		return fmt.Sprintf("public Dictionary<%s, %s> %s = new Dictionary<%s, %s>();", keyType, valueType, self.Name, keyType, valueType)
 
 	default:
 		raw = "unknown"
@@ -324,6 +328,58 @@ func (self csharpField) TypeCode() string {
 	}
 
 	return fmt.Sprintf("public %s %s = %s;", raw, self.Name, wrapCSharpDefaultValue(self.FieldDescriptor))
+}
+
+func (self csharpField) mapKeyCSharpType() string {
+	switch self.MapKeyType {
+	case model.FieldType_Int32:
+		return "int"
+	case model.FieldType_UInt32:
+		return "uint"
+	case model.FieldType_Int64:
+		return "long"
+	case model.FieldType_UInt64:
+		return "ulong"
+	case model.FieldType_String:
+		return "string"
+	case model.FieldType_Float:
+		return "float"
+	case model.FieldType_Bool:
+		return "bool"
+	case model.FieldType_Enum:
+		if self.MapKeyComplex != nil {
+			return self.MapKeyComplex.Name
+		}
+	}
+	return "unknown"
+}
+
+func (self csharpField) mapValueCSharpType() string {
+	switch self.MapValueType {
+	case model.FieldType_Int32:
+		return "int"
+	case model.FieldType_UInt32:
+		return "uint"
+	case model.FieldType_Int64:
+		return "long"
+	case model.FieldType_UInt64:
+		return "ulong"
+	case model.FieldType_String:
+		return "string"
+	case model.FieldType_Float:
+		return "float"
+	case model.FieldType_Bool:
+		return "bool"
+	case model.FieldType_Enum:
+		if self.MapValueComplex != nil {
+			return self.MapValueComplex.Name
+		}
+	case model.FieldType_Struct:
+		if self.MapValueComplex != nil {
+			return self.MapValueComplex.Name
+		}
+	}
+	return "unknown"
 }
 
 func wrapCSharpDefaultValue(fd *model.FieldDescriptor) string {

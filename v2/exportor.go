@@ -9,6 +9,83 @@ import (
 	"github.com/adamluo159/tabtoy/v2/printer"
 )
 
+func solveMapFieldTypes(file *File, globalFD *model.FileDescriptor) bool {
+	for _, fd := range file.LocalFD.Descriptors {
+		for _, field := range fd.Fields {
+			if field.Type == model.FieldType_Map && field.RawFieldType != "" {
+				if !solveMapFieldType(field, file.LocalFD, globalFD) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+func solveMapFieldType(fd *model.FieldDescriptor, localFD *model.FileDescriptor, globalFD *model.FileDescriptor) bool {
+	rawstr := fd.RawFieldType
+	if !strings.HasSuffix(rawstr, ">") {
+		log.Errorf("map type format error, expected 'map<K,V>', got: '%s'", rawstr)
+		return false
+	}
+
+	inner := rawstr[4 : len(rawstr)-1]
+	parts := strings.Split(inner, ",")
+	if len(parts) != 2 {
+		log.Errorf("map type format error, expected 'map<K,V>', got: '%s'", rawstr)
+		return false
+	}
+
+	keyType := strings.TrimSpace(parts[0])
+	valueType := strings.TrimSpace(parts[1])
+
+	// 解析key类型
+	if ft, ok := model.ParseFieldType(keyType); ok {
+		fd.MapKeyType = ft
+	} else {
+		// 在本地和全局查找枚举类型
+		desc := findDescriptor(localFD, globalFD, keyType)
+		if desc == nil || desc.Kind != model.DescriptorKind_Enum {
+			log.Errorf("map key type must be builtin type or enum, got: '%s'", keyType)
+			return false
+		}
+		fd.MapKeyType = model.FieldType_Enum
+		fd.MapKeyComplex = desc
+	}
+
+	// 解析value类型
+	if ft, ok := model.ParseFieldType(valueType); ok {
+		fd.MapValueType = ft
+	} else {
+		// 在本地和全局查找枚举或结构体类型
+		desc := findDescriptor(localFD, globalFD, valueType)
+		if desc == nil {
+			log.Errorf("map value type not found: '%s'", valueType)
+			return false
+		}
+		fd.MapValueComplex = desc
+		switch desc.Kind {
+		case model.DescriptorKind_Struct:
+			fd.MapValueType = model.FieldType_Struct
+		case model.DescriptorKind_Enum:
+			fd.MapValueType = model.FieldType_Enum
+		}
+	}
+
+	fd.RawFieldType = "" // 清空，避免重复解析
+	return true
+}
+
+func findDescriptor(localFD *model.FileDescriptor, globalFD *model.FileDescriptor, name string) *model.Descriptor {
+	if desc, ok := localFD.DescriptorByName[name]; ok {
+		return desc
+	}
+	if desc, ok := globalFD.DescriptorByName[name]; ok {
+		return desc
+	}
+	return nil
+}
+
 func filterFields(cachedFile map[string]*File, g *printer.Globals) {
 	for _, v := range cachedFile {
 		for _, vv := range v.LocalFD.Descriptors {
@@ -160,6 +237,13 @@ func Run(g *printer.Globals) bool {
 
 		}
 
+	}
+
+	// 延迟解析map类型
+	for _, file := range fileObjList {
+		if !solveMapFieldTypes(file, g.FileDescriptor) {
+			return false
+		}
 	}
 
 	log.Infof("==========%s==========", i18n.String(i18n.Run_ExportSheetData))

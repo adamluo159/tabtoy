@@ -5,7 +5,6 @@ type Node struct {
 
 	StructRoot bool // 结构体标记的dummy node
 
-	// 各种类型的值
 	Value     string
 	EnumValue int32
 	Raw       []byte
@@ -13,6 +12,9 @@ type Node struct {
 	Child []*Node // 优先遍历值, 再key
 
 	SugguestIgnore bool //  建议忽略, 非repeated的普通字段导出时, 如果原单元格没填, 这个字段为true
+
+	MapKey   string // map类型的key值
+	EnumKey  int32  // map类型的key为枚举时的值
 }
 
 func (self *Node) AddValue(value string) *Node {

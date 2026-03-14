@@ -211,6 +211,60 @@ func (self *typeModelRoot) SolveUnknownModel(localFD *model.FileDescriptor, glob
 		m.fd.Type = fieldType
 		m.fd.Complex = complexType
 		m.fd.IsRepeated = isrepeatd
+
+		// 处理map类型的key和value类型解析
+		if fieldType == model.FieldType_Map {
+			if !solveMapTypes(m.fd, localFD, globalFD, m.rawFieldType) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func solveMapTypes(fd *model.FieldDescriptor, localFD *model.FileDescriptor, globalFD *model.FileDescriptor, rawFieldType string) bool {
+	if !strings.HasSuffix(rawFieldType, ">") {
+		log.Errorf("map type format error, expected 'map<K,V>', got: '%s'", rawFieldType)
+		return false
+	}
+
+	inner := rawFieldType[4 : len(rawFieldType)-1]
+	parts := strings.Split(inner, ",")
+	if len(parts) != 2 {
+		log.Errorf("map type format error, expected 'map<K,V>', got: '%s'", rawFieldType)
+		return false
+	}
+
+	keyType := strings.TrimSpace(parts[0])
+	valueType := strings.TrimSpace(parts[1])
+
+	// 解析key类型
+	if ft, ok := model.ParseFieldType(keyType); ok {
+		fd.MapKeyType = ft
+	} else {
+		// 在本地和全局查找枚举类型
+		keyFieldType, _, keyComplex, ok := findFieldType(localFD, globalFD, keyType)
+		if !ok || keyFieldType != model.FieldType_Enum {
+			log.Errorf("map key type must be builtin type or enum, got: '%s'", keyType)
+			return false
+		}
+		fd.MapKeyType = model.FieldType_Enum
+		fd.MapKeyComplex = keyComplex
+	}
+
+	// 解析value类型
+	if ft, ok := model.ParseFieldType(valueType); ok {
+		fd.MapValueType = ft
+	} else {
+		// 在本地和全局查找枚举或结构体类型
+		valueFieldType, _, valueComplex, ok := findFieldType(localFD, globalFD, valueType)
+		if !ok {
+			log.Errorf("map value type not found: '%s'", valueType)
+			return false
+		}
+		fd.MapValueComplex = valueComplex
+		fd.MapValueType = valueFieldType
 	}
 
 	return true
@@ -258,6 +312,8 @@ func findlocalFieldType(localFD *model.FileDescriptor, rawFieldType string) (mod
 		puretype = rawFieldType[model.RepeatedKeywordLen+1:]
 
 		isrepeated = true
+	} else if strings.HasPrefix(rawFieldType, model.MapKeyword) {
+		return model.FieldType_Map, false, nil, true
 	} else {
 		puretype = rawFieldType
 	}

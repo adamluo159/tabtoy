@@ -25,6 +25,42 @@ func valueWrapperLua(g *Globals, t model.FieldType, n *model.Node) string {
 	return n.Value
 }
 
+func mapKeyWrapperLua(t model.FieldType, key string) string {
+	switch t {
+	case model.FieldType_String:
+		return util.StringWrap(util.StringEscape(key))
+	default:
+		return key
+	}
+}
+
+func printMapLua(g *Globals, stream *Stream, node *model.Node) {
+	stream.Printf("{ ")
+	for entryIndex, entryNode := range node.Child {
+		if entryIndex > 0 {
+			stream.Printf(", ")
+		}
+
+		stream.Printf("[%s] = ", mapKeyWrapperLua(node.MapKeyType, entryNode.MapKey))
+
+		if node.MapValueType == model.FieldType_Struct {
+			stream.Printf("{ ")
+			for fieldIndex, fieldNode := range entryNode.Child {
+				if fieldIndex > 0 {
+					stream.Printf(", ")
+				}
+				valueNode := fieldNode.Child[0]
+				stream.Printf("%s= %s", fieldNode.Name, valueWrapperLua(g, fieldNode.Type, valueNode))
+			}
+			stream.Printf(" }")
+		} else {
+			valueNode := entryNode.Child[0]
+			stream.Printf("%s", valueWrapperLua(g, node.MapValueType, valueNode))
+		}
+	}
+	stream.Printf(" }")
+}
+
 type luaPrinter struct {
 }
 
@@ -92,12 +128,15 @@ func printTableLua(g *Globals, stream *Stream, tab *model.Table) bool {
 
 			if node.IsRepeated {
 				stream.Printf("%s = { ", node.Name)
+			} else if node.Type == model.FieldType_Map {
+				stream.Printf("%s = ", node.Name)
 			} else {
 				stream.Printf("%s = ", node.Name)
 			}
 
-			// 普通值
-			if node.Type != model.FieldType_Struct {
+			if node.Type == model.FieldType_Map {
+				printMapLua(g, stream, node)
+			} else if node.Type != model.FieldType_Struct {
 
 				if node.IsRepeated {
 

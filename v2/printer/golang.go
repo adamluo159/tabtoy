@@ -58,7 +58,7 @@ func (self {{$en.Name}}) String() string {
 type {{$strus.Name}} struct{
 	{{range $b, $fd := $strus.GoFields}} 
 	{{.Comment}}
-	{{$fd.Name}} {{$fd.TypeString}} {{$fd.StructTag}}
+	{{if .IsMap}}{{$fd.Name}} {{.MapTypeString}} {{$fd.StructTag}}{{else}}{{$fd.Name}} {{$fd.TypeString}} {{$fd.StructTag}}{{end}}
 	{{end}}
 }
 {{end}}
@@ -433,6 +433,39 @@ func (self *goFieldModel) TypeString() string {
 
 	return prefix + self.ElementTypeString()
 
+}
+
+func (self *goFieldModel) IsMap() bool {
+	return self.FieldDescriptor.Type == model.FieldType_Map
+}
+
+func (self *goFieldModel) MapKeyGoType() string {
+	if self.FieldDescriptor.MapKeyType == model.FieldType_Enum {
+		if self.FieldDescriptor.MapKeyComplex != nil {
+			return self.FieldDescriptor.MapKeyComplex.Name
+		}
+	}
+	return model.FieldTypeToString(self.FieldDescriptor.MapKeyType)
+}
+
+func (self *goFieldModel) MapValueGoType() string {
+	switch self.FieldDescriptor.MapValueType {
+	case model.FieldType_Struct:
+		if self.FieldDescriptor.MapValueComplex != nil {
+			return "*" + self.FieldDescriptor.MapValueComplex.Name
+		}
+	case model.FieldType_Enum:
+		if self.FieldDescriptor.MapValueComplex != nil {
+			return self.FieldDescriptor.MapValueComplex.Name
+		}
+	default:
+		return model.FieldTypeToString(self.FieldDescriptor.MapValueType)
+	}
+	return model.FieldTypeToString(self.FieldDescriptor.MapValueType)
+}
+
+func (self *goFieldModel) MapTypeString() string {
+	return "map[" + self.MapKeyGoType() + "]" + self.MapValueGoType()
 }
 
 // 对应每个电子表格文件

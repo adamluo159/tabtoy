@@ -34,6 +34,16 @@ func (self *structFieldList) Exists(fd *model.FieldDescriptor) bool {
 	return false
 }
 
+func (self *structFieldList) GetValue(fd *model.FieldDescriptor) string {
+	for _, libfd := range self.data {
+		if libfd.key == fd {
+			return libfd.value
+		}
+	}
+
+	return ""
+}
+
 func (self *structFieldList) Len() int {
 	return len(self.data)
 }
