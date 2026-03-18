@@ -316,6 +316,16 @@ func parseMapStructValueAndGetKey(fd *model.FieldDescriptor, value string, fileD
 		return "", fmt.Errorf("MapKeyField '%s' value not found in cell", mapKeyField)
 	}
 
+	// Handle enum key type
+	if fd.MapKeyComplex != nil {
+		keyEvd := fd.MapKeyComplex.FieldByValueAndMeta(keyFieldValue)
+		if keyEvd == nil {
+			return "", fmt.Errorf("enum key value not found: '%s' in enum '%s'", keyFieldValue, fd.MapKeyComplex.Name)
+		}
+		node.EnumKey = keyEvd.EnumValue
+		keyFieldValue = keyEvd.Name
+	}
+
 	for _, structField := range fd.MapValueComplex.Fields {
 		if sfList.Exists(structField) {
 			continue

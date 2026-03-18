@@ -22,12 +22,14 @@ func valueWrapperJson(t model.FieldType, node *model.Node) string {
 	return node.Value
 }
 
-func mapKeyWrapperJson(t model.FieldType, key string) string {
-	switch t {
+func mapKeyWrapperJson(parent *model.Node, entryNode *model.Node) string {
+	switch parent.MapKeyType {
 	case model.FieldType_String:
-		return util.StringWrap(util.StringEscape(key))
+		return util.StringWrap(util.StringEscape(entryNode.MapKey))
+	case model.FieldType_Enum:
+		return util.StringWrap(strconv.Itoa(int(entryNode.EnumKey)))
 	default:
-		return key
+		return util.StringWrap(entryNode.MapKey)
 	}
 }
 
@@ -38,7 +40,7 @@ func printMapJson(bf *Stream, node *model.Node) {
 			bf.Printf(", ")
 		}
 
-		bf.Printf("%s: ", mapKeyWrapperJson(node.MapKeyType, entryNode.MapKey))
+		bf.Printf("%s: ", mapKeyWrapperJson(node, entryNode))
 
 		if node.MapValueType == model.FieldType_Struct {
 			bf.Printf("{ ")
