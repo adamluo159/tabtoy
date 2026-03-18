@@ -79,6 +79,28 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
             return def;
         }
 		{{end}}
+		{{range $a, $union := $.UnionIndexes}}
+		std::map<std::string, {{$union.RowType}}> _{{$union.RowName}}By{{$union.KeyName}};
+	public:
+		static std::string Make{{$union.RowType}}Key{{$union.KeyName}}({{$union.Key1Type}} k1, {{$union.Key2Type}} k2)
+		{
+			return std::to_string(k1) + "|" + std::to_string(k2);
+		}
+		class {{$union.RowType}}* Get{{$union.RowType}}By{{$union.KeyName}}({{$union.Key1Type}} k1, {{$union.Key2Type}} k2, {{$union.RowType}}* def = nullptr)
+		{
+			std::string key = Make{{$union.RowType}}Key{{$union.KeyName}}(k1, k2);
+			auto ret = _{{$union.RowName}}By{{$union.KeyName}}.find(key);
+			if ( ret != _{{$union.RowName}}By{{$union.KeyName}}.end() )
+			{
+				return &ret->second;
+			}
+			if ( def == nullptr )
+			{
+				TableLogger.ErrorLine("Get{{$union.RowType}}By{{$union.KeyName}} failed, key: %s", key.c_str());
+			}
+			return def;
+		}
+		{{end}}
 	{{range $verticalFields}}
 	public:
 		class {{.StructName}}* Get{{.Name}}( )
@@ -113,6 +135,15 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 				{{range $b, $key := .IndexKeys}}
 				ins._{{$row.FieldDescriptor.Name}}By{{$key.Name}}.emplace(std::make_pair(element.{{$key.Name}}_, element));
 				{{end}}
+			}
+			{{end}}
+			{{range $a, $union := $.UnionIndexes}}
+			// Build {{$union.RowName}} Union Index
+			for( size_t i = 0;i< ins.{{$union.RowName}}_.size();i++)
+			{
+				auto element = ins.{{$union.RowName}}_[i];
+				std::string key = Make{{$union.RowType}}Key{{$union.KeyName}}(element.{{$union.Key1.Name}}_, element.{{$union.Key2.Name}}_);
+				ins._{{$union.RowName}}By{{$union.KeyName}}.emplace(std::make_pair(key, element));
 			}
 			{{end}}
 		}{{end}}
@@ -165,6 +196,56 @@ func (self cppIndexField) IndexType() string {
 		log.Errorf("%s can not be index ", self.Index.String())
 	}
 
+	return "unknown"
+}
+
+type cppUnionIndexField struct {
+	Row  *model.FieldDescriptor
+	Key1 *model.FieldDescriptor
+	Key2 *model.FieldDescriptor
+}
+
+func (self cppUnionIndexField) RowType() string {
+	return self.Row.Complex.Name
+}
+
+func (self cppUnionIndexField) RowName() string {
+	return self.Row.Name
+}
+
+func (self cppUnionIndexField) KeyName() string {
+	return self.Key1.Name + self.Key2.Name
+}
+
+func (self cppUnionIndexField) Key1Type() string {
+	return cppFieldType(self.Key1.Type, self.Key1)
+}
+
+func (self cppUnionIndexField) Key2Type() string {
+	return cppFieldType(self.Key2.Type, self.Key2)
+}
+
+func cppFieldType(t model.FieldType, fd *model.FieldDescriptor) string {
+	switch t {
+	case model.FieldType_Int32:
+		return "int"
+	case model.FieldType_UInt32:
+		return "unsigned int"
+	case model.FieldType_Int64:
+		return "long long"
+	case model.FieldType_UInt64:
+		return "unsigned long long"
+	case model.FieldType_String:
+		return "std::string"
+	case model.FieldType_Float:
+		return "float"
+	case model.FieldType_Bool:
+		return "bool"
+	case model.FieldType_Enum:
+		if fd.Complex != nil {
+			return fd.Complex.Name
+		}
+	}
 	return "unknown"
 }
 
@@ -367,6 +448,8 @@ type cppFileModel struct {
 	Indexes     []cppIndexField // 全局的索引
 
 	VerticalFields []cppField
+
+	UnionIndexes []cppUnionIndexField
 }
 
 type cppPrinter struct {
@@ -394,6 +477,31 @@ func (self *cppPrinter) Run(g *Globals) *Stream {
 		}
 
 		m.Indexes = append(m.Indexes, cppIndexField{TableIndex: ti})
+	}
+
+	// 收集联合索引
+	for _, fd := range g.CombineStruct.Fields {
+		if g.CombineStruct.Usage != model.DescriptorUsage_CombineStruct {
+			continue
+		}
+
+		if fd.Complex == nil {
+			continue
+		}
+
+		if !fd.Complex.File.MatchTag(".cpp") {
+			continue
+		}
+
+		for _, unionFields := range fd.Complex.UnionIndexes {
+			if len(unionFields) >= 2 {
+				m.UnionIndexes = append(m.UnionIndexes, cppUnionIndexField{
+					Row:  fd,
+					Key1: unionFields[0],
+					Key2: unionFields[1],
+				})
+			}
+		}
 	}
 
 	// 遍历所有类型

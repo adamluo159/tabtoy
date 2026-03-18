@@ -311,6 +311,27 @@ func genLuaIndexCode(stream *Stream, combineStruct *model.Descriptor) bool {
 
 			}
 
+			// 联合索引
+			if fd.Complex != nil && len(fd.Complex.UnionIndexes) > 0 {
+				for _, unionFields := range fd.Complex.UnionIndexes {
+					if len(unionFields) >= 2 {
+						keyName := unionFields[0].Name + unionFields[1].Name
+						mapperVarName := fmt.Sprintf("tab.%sBy%s", fd.Name, keyName)
+						funcName := fmt.Sprintf("tab.make%sKey%s", fd.Complex.Name, keyName)
+
+						stream.Printf("\n-- %s + %s Union Index\n", unionFields[0].Name, unionFields[1].Name)
+						stream.Printf("%s = function(k1, k2)\n", funcName)
+						stream.Printf("\treturn k1 .. \"|\" .. k2\n")
+						stream.Printf("end\n")
+						stream.Printf("%s = {}\n", mapperVarName)
+						stream.Printf("for _, rec in pairs(tab.%s) do\n", fd.Name)
+						stream.Printf("\tlocal key = %s(rec.%s, rec.%s)\n", funcName, unionFields[0].Name, unionFields[1].Name)
+						stream.Printf("\t%s[key] = rec\n", mapperVarName)
+						stream.Printf("end\n")
+					}
+				}
+			}
+
 		}
 
 	}

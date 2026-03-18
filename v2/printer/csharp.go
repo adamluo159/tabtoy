@@ -60,6 +60,27 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
             return def;
         }
 		{{end}}
+		{{range $a, $union := .UnionIndexes}}
+		Dictionary<string, {{$union.RowType}}> _{{$union.RowName}}By{{$union.KeyName}} = new Dictionary<string, {{$union.RowType}}>();
+		public static string Make{{$union.RowType}}Key{{$union.KeyName}}({{$union.Key1Type}} k1, {{$union.Key2Type}} k2)
+		{
+			return k1 + "|" + k2;
+		}
+		public {{$union.RowType}} Get{{$union.RowType}}By{{$union.KeyName}}({{$union.Key1Type}} k1, {{$union.Key2Type}} k2, {{$union.RowType}} def = default({{.RowType}}))
+		{
+			string key = Make{{$union.RowType}}Key{{$union.KeyName}}(k1, k2);
+			{{$union.RowType}} ret;
+			if ( _{{$union.RowName}}By{{$union.KeyName}}.TryGetValue( key, out ret ) )
+			{
+				return ret;
+			}
+			if ( def == default({{$union.RowType}}) )
+			{
+				TableLogger.ErrorLine("Get{{$union.RowType}}By{{$union.KeyName}} failed, key: {0}", key);
+			}
+			return def;
+		}
+		{{end}}
 		public string GetBuildID(){
 			return "{{$.BuildID}}";
 		}
@@ -111,6 +132,15 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 				{{end}}
 			}
 			{{end}}
+			{{range $a, $union := $.UnionIndexes}}
+			// Build {{$union.RowName}} Union Index
+			for( int i = 0;i< ins.{{$union.RowName}}.Count;i++)
+			{
+				var element = ins.{{$union.RowName}}[i];
+				string key = Make{{$union.RowType}}Key{{$union.KeyName}}(element.{{$union.Key1.Name}}, element.{{$union.Key2.Name}});
+				ins._{{$union.RowName}}By{{$union.KeyName}}.Add(key, element);
+			}
+			{{end}}
 		}{{end}}
 		#endregion
 		#region Clear Code
@@ -119,6 +149,8 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 				{{.Name}}.Clear(); {{end}}
 			{{range $globalIndex}}
 				_{{.RowName}}By{{.IndexName}}.Clear(); {{end}}
+			{{range $a, $union := .UnionIndexes}}
+				_{{$union.RowName}}By{{$union.KeyName}}.Clear(); {{end}}
 		}
 		#endregion
 	{{end}}
@@ -168,6 +200,56 @@ func (self indexField) IndexType() string {
 		log.Errorf("%s can not be index ", self.Index.String())
 	}
 
+	return "unknown"
+}
+
+type unionIndexField struct {
+	Row      *model.FieldDescriptor
+	Key1     *model.FieldDescriptor
+	Key2     *model.FieldDescriptor
+}
+
+func (self unionIndexField) RowType() string {
+	return self.Row.Complex.Name
+}
+
+func (self unionIndexField) RowName() string {
+	return self.Row.Name
+}
+
+func (self unionIndexField) KeyName() string {
+	return self.Key1.Name + self.Key2.Name
+}
+
+func (self unionIndexField) Key1Type() string {
+	return csharpFieldType(self.Key1.Type, self.Key1)
+}
+
+func (self unionIndexField) Key2Type() string {
+	return csharpFieldType(self.Key2.Type, self.Key2)
+}
+
+func csharpFieldType(t model.FieldType, fd *model.FieldDescriptor) string {
+	switch t {
+	case model.FieldType_Int32:
+		return "int"
+	case model.FieldType_UInt32:
+		return "uint"
+	case model.FieldType_Int64:
+		return "long"
+	case model.FieldType_UInt64:
+		return "ulong"
+	case model.FieldType_String:
+		return "string"
+	case model.FieldType_Float:
+		return "float"
+	case model.FieldType_Bool:
+		return "bool"
+	case model.FieldType_Enum:
+		if fd.Complex != nil {
+			return fd.Complex.Name
+		}
+	}
 	return "unknown"
 }
 
@@ -431,6 +513,8 @@ type csharpFileModel struct {
 	GenSerializeCode bool
 
 	BuildID string
+
+	UnionIndexes []unionIndexField
 }
 
 type csharpPrinter struct {
@@ -464,6 +548,31 @@ func (self *csharpPrinter) Run(g *Globals) *Stream {
 		}
 
 		m.Indexes = append(m.Indexes, indexField{TableIndex: ti})
+	}
+
+	// 收集联合索引
+	for _, fd := range g.CombineStruct.Fields {
+		if g.CombineStruct.Usage != model.DescriptorUsage_CombineStruct {
+			continue
+		}
+
+		if fd.Complex == nil {
+			continue
+		}
+
+		if !fd.Complex.File.MatchTag(".cs") {
+			continue
+		}
+
+		for _, unionFields := range fd.Complex.UnionIndexes {
+			if len(unionFields) >= 2 {
+				m.UnionIndexes = append(m.UnionIndexes, unionIndexField{
+					Row:  fd,
+					Key1: unionFields[0],
+					Key2: unionFields[1],
+				})
+			}
+		}
 	}
 
 	// 遍历所有类型

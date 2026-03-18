@@ -116,9 +116,14 @@ func (self *{{$.Name}}Table) Get{{$strus.TypeName}}By{{.Name}}(key {{.KeyType}})
 }
 {{end}}{{end}}{{/* 联合索引访问方法 - 基于UnionIndex标记 */}}
 {{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+/** 生成{{$strus.TypeName}}联合索引Key */
+func Make{{$strus.TypeName}}Key{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}(k1 int32, k2 int32) struct{ K1 int32; K2 int32 } {
+	return struct{ K1 int32; K2 int32 }{K1: k1, K2: k2}
+}
+
 /** 通过{{(index $unionFields 0).Name}}和{{(index $unionFields 1).Name}}获取{{$strus.TypeName}} */
 func (self *{{$.Name}}Table) Get{{$strus.TypeName}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}(k1 int32, k2 int32) *{{$strus.TypeName}} {
-	return self.data.Load().{{$strus.Name}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}[struct{ K1 int32; K2 int32 }{K1: k1, K2: k2}]
+	return self.data.Load().{{$strus.Name}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}[Make{{$strus.TypeName}}Key{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}}(k1, k2)]
 }
 {{end}}{{end}}{{end}}
 

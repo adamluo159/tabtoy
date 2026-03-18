@@ -44,7 +44,15 @@ export interface {{$strus.Name}} {
 /** 表格分片数据结构 */
 export interface TablePart {
 {{range $a, $strus := .All}}    {{$strus.Name}}?: {{$strus.TypeString}}[];
-{{end}}}
+{{end}}
+}
+
+{{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
+/** 生成{{$strus.TypeName}}联合索引Key */
+export function make{{$strus.TypeName}}Key{{range $i, $field := $unionFields}}{{$field.Name}}{{end}}({{range $i, $field := $unionFields}}{{if $i}}, {{end}}key{{add $i 1}}: number{{end}}): string {
+    return {{range $i, $field := $unionFields}}{{if $i}} + "|" + {{end}}key{{add $i 1}}{{end}};
+}
+{{end}}{{end}}{{end}}
 
 /** 表格访问器 */
 export class TableAccessor {
@@ -144,7 +152,7 @@ export class TableAccessor {
     {{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
     /** 通过{{range $i, $field := $unionFields}}{{if $i}}和{{end}}{{$field.Name}}{{end}}获取{{$strus.TypeName}} */
     get{{$strus.TypeName}}By{{range $i, $field := $unionFields}}{{$field.Name}}{{end}}({{range $i, $field := $unionFields}}{{if $i}}, {{end}}key{{add $i 1}}: number{{end}}): {{$strus.TypeName}} | undefined {
-        const combinedKey = {{range $i, $field := $unionFields}}{{if $i}} + "|" + {{end}}key{{add $i 1}}{{end}};
+        const combinedKey = make{{$strus.TypeName}}Key{{range $i, $field := $unionFields}}{{$field.Name}}{{end}}({{range $i, $field := $unionFields}}{{if $i}}, {{end}}key{{add $i 1}}{{end}});
         return this.{{$strus.TypeName}}By{{range $i, $field := $unionFields}}{{$field.Name}}{{end}}.get(combinedKey);
     }
     {{end}}{{end}}{{end}}
