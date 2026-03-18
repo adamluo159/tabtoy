@@ -34,7 +34,7 @@ func StringEscape(s string) string {
 			b = append(b, '\\')
 
 			switch nextChar {
-			case 'n', 'r':
+			case 'n', 'r', 't':
 			default:
 				b = append(b, c)
 			}
