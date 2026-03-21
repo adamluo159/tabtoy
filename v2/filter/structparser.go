@@ -88,6 +88,14 @@ func newStructParser(value string) *structParser {
 }
 
 func parseStruct(fd *model.FieldDescriptor, value string, fileD *model.FileDescriptor, node *model.Node) bool {
+	// 检查是否支持简化输入：结构体有2个字段，且第一个字段标记了 SimpleInput:true
+	if len(fd.Complex.Fields) == 2 && fd.Complex.Fields[0].Meta.GetBool("SimpleInput") {
+		if result := parseSimpleStruct(fd, value, fileD, node); result {
+			return true
+		}
+		// 简化格式解析失败，继续尝试标准格式
+	}
+
 	p := newStructParser(value)
 
 	// 检查字段有没有重复
@@ -151,4 +159,35 @@ func parseStruct(fd *model.FieldDescriptor, value string, fileD *model.FileDescr
 
 	return true
 
+}
+
+// parseSimpleStruct 解析简化格式的结构体输入
+// 格式: value1:value2，例如 "金币:2000" 或 "10000:2000"
+func parseSimpleStruct(fd *model.FieldDescriptor, value string, fileD *model.FileDescriptor, node *model.Node) bool {
+	// 查找冒号位置
+	colonIndex := findColonIndex(value)
+	if colonIndex == -1 {
+		return false
+	}
+
+	field1Value := trimString(value[:colonIndex])
+	field2Value := trimString(value[colonIndex+1:])
+
+	// 获取结构体的两个字段
+	field1 := fd.Complex.Fields[0]
+	field2 := fd.Complex.Fields[1]
+
+	// 解析第一个字段
+	fieldNode1 := node.AddKey(field1)
+	if _, ok := ConvertValue(field1, field1Value, fileD, fieldNode1); !ok {
+		return false
+	}
+
+	// 解析第二个字段
+	fieldNode2 := node.AddKey(field2)
+	if _, ok := ConvertValue(field2, field2Value, fileD, fieldNode2); !ok {
+		return false
+	}
+
+	return true
 }

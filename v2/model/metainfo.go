@@ -18,6 +18,7 @@ var builtinTag = map[string]bool{
 	"UnionIndex":  true,
 	"MapSpliter":  true,
 	"MapKeyField": true,
+	"SimpleInput": true,
 }
 
 func IsSystemTag(tag string) bool {

@@ -85,6 +85,7 @@ Meta 列用于添加字段特性，多个标签用空格分隔。
 | **MapSpliter** | Map 分隔符 | `MapSpliter:\|` |
 | **MapKeyField** | Map 的 Key 字段名 | `MapKeyField:ID` |
 | **Mark** | 标记字段，用于筛选输出 | `Mark:Client` |
+| **SimpleInput** | 简化输入，用于2字段结构体 | `SimpleInput:true` |
 
 ### Lua 相关标签
 
@@ -115,6 +116,64 @@ Meta: `MyTag:"value" JsonTag:"my_field"`
 ```go
 FieldName string `MyTag:"value" JsonTag:"my_field"`
 ```
+
+---
+
+## SimpleInput 简化输入
+
+### 用途
+
+当结构体只有 2 个字段时，可以使用简化格式输入，减少输入字符数。
+
+### 使用方法
+
+在 @Types 表中，给结构体的**第一个字段**添加 `SimpleInput:true` 标签：
+
+```
+ObjectType    FieldName   FieldType   Value   Meta
+ItemCost      ID          int32               SimpleInput:true
+ItemCost      Num         int32
+```
+
+### 输入格式对比
+
+**标准格式**（需要写字段名）：
+```
+ID:金币 Num:2000|ID:一阶碎片 Num:40
+```
+
+**简化格式**（不需要写字段名）：
+```
+金币:2000|一阶碎片:40
+```
+
+### 完整示例
+
+**@Types 表定义：**
+
+| ObjectType | FieldName | FieldType | Value | Meta |
+|------------|-----------|-----------|-------|------|
+| ItemCost | ID | int32 | | `SimpleInput:true` |
+| ItemCost | Num | int32 | | |
+
+**数据表中使用：**
+
+| 字段名 | 类型 | Meta | 值 |
+|--------|------|------|-----|
+| Costs | `repeated ItemCost` | `ListSpliter:\|` | `金币:2000\|一阶碎片:40` |
+
+**等价于标准格式：**
+
+| 字段名 | 类型 | Meta | 值 |
+|--------|------|------|-----|
+| Costs | `repeated ItemCost` | `ListSpliter:\|` | `ID:金币 Num:2000\|ID:一阶碎片 Num:40` |
+
+### 注意事项
+
+1. 结构体必须**恰好有 2 个字段**
+2. `SimpleInput:true` 标签必须添加在**第一个字段**上
+3. 简化格式为 `值1:值2`，按字段定义顺序对应
+4. 如果简化格式解析失败，会自动尝试标准格式
 
 ---
 
