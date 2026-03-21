@@ -48,6 +48,11 @@ type FieldDescriptor struct {
 	MapValueComplex *Descriptor // map的value复杂类型(枚举或结构体)
 
 	RawFieldType string // 原始类型字符串，用于延迟解析
+
+	// 多列展开支持 (StructName.FieldName 格式)
+	StructPath      string // 结构体路径，如 "Costs"
+	StructFieldName string // 结构体字段名，如 "ID"
+	StructColIndex  int    // 在 repeated 结构体中的列索引（第几个实例）
 }
 
 func NewFieldDescriptor() *FieldDescriptor {

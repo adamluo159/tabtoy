@@ -64,6 +64,49 @@ func coloumnProcessor(file model.GlobalChecker, record *model.Record, fd *model.
 	return true
 }
 
+// structExpandProcessor 处理多列展开的结构体字段
+func structExpandProcessor(file model.GlobalChecker, record *model.Record, fv *model.FieldValue) bool {
+	info, ok := fv.StructExpandInfo.(*StructExpandInfo)
+	if !ok {
+		log.Errorf("invalid struct expand info")
+		return false
+	}
+
+	// 获取或创建主字段节点
+	mainNode := record.NewNodeByDefine(fv.FieldDef)
+	mainNode.IsRepeated = true
+
+	// 计算需要创建多少个结构体实例
+	maxInstanceIndex := 0
+	for _, col := range info.Columns {
+		if col.StructFieldIndex > maxInstanceIndex {
+			maxInstanceIndex = col.StructFieldIndex
+		}
+	}
+
+	// 确保有足够多的结构体实例节点
+	for len(mainNode.Child) <= fv.StructInstanceIndex {
+		structNode := &model.Node{
+			FieldDescriptor: fv.FieldDef,
+			StructRoot:      true,
+		}
+		mainNode.Child = append(mainNode.Child, structNode)
+	}
+
+	// 获取当前结构体实例节点
+	structNode := mainNode.Child[fv.StructInstanceIndex]
+
+	// 添加字段节点
+	fieldNode := structNode.AddKey(fv.StructFieldDef)
+
+	// 转换值
+	if !dataProcessor(file, fv.StructFieldDef, fv.RawValue, fieldNode) {
+		return false
+	}
+
+	return true
+}
+
 func dataProcessor(gc model.GlobalChecker, fd *model.FieldDescriptor, raw string, node *model.Node) bool {
 
 	// 单值

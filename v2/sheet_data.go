@@ -198,6 +198,11 @@ func (self *DataSheet) processLine(fieldDef *model.FieldDescriptor, line *model.
 		return lineOp_Continue
 	}
 
+	// 处理多列展开的结构体字段
+	if fieldDef.StructPath != "" && fieldDef.StructFieldName != "" {
+		return self.processStructExpandField(fieldDef, line, dataHeader)
+	}
+
 	var rawValue string
 	// 浮点数按本来的格式输出
 	if fieldDef.Type == model.FieldType_Float && !fieldDef.IsRepeated {
@@ -218,6 +223,76 @@ func (self *DataSheet) processLine(fieldDef *model.FieldDescriptor, line *model.
 		R:                  r,
 		C:                  c,
 		FieldRepeatedCount: dataHeader.FieldRepeatedCount(fieldDef),
+	})
+
+	return lineOp_none
+}
+
+// processStructExpandField 处理多列展开的结构体字段
+func (self *DataSheet) processStructExpandField(fieldDef *model.FieldDescriptor, line *model.LineData, dataHeader *DataHeader) int {
+	// 获取结构体展开信息
+	info, ok := dataHeader.structExpandFields[fieldDef.StructPath]
+	if !ok {
+		log.Errorf("struct expand info not found for: '%s'", fieldDef.StructPath)
+		return lineOp_Break
+	}
+
+	// 获取主字段
+	mainField, ok := dataHeader.HeaderByName[fieldDef.StructPath]
+	if !ok {
+		log.Errorf("main field not found for struct expand: '%s'", fieldDef.StructPath)
+		return lineOp_Break
+	}
+
+	var rawValue string
+	if fieldDef.Type == model.FieldType_Float {
+		rawValue = self.GetCellDataAsNumeric(self.Row, self.Column)
+	} else {
+		rawValue = self.GetCellData(self.Row, self.Column)
+	}
+
+	// 跳过空值
+	if rawValue == "" {
+		return lineOp_none
+	}
+
+	r, c := self.GetRC()
+
+	// 查找结构体字段描述符
+	var structFieldDef *model.FieldDescriptor
+	for _, f := range mainField.Complex.Fields {
+		if f.Name == fieldDef.StructFieldName {
+			structFieldDef = f
+			break
+		}
+	}
+
+	if structFieldDef == nil {
+		log.Errorf("struct field descriptor not found: '%s' in struct '%s'", fieldDef.StructFieldName, mainField.Complex.Name)
+		return lineOp_Break
+	}
+
+	// 计算当前是第几个结构体实例（基于列中该字段出现的次数）
+	instanceIndex := 0
+	for _, col := range info.Columns {
+		if col.ColIndex < self.Column && col.StructFieldName == fieldDef.StructFieldName {
+			instanceIndex++
+		}
+	}
+
+	line.Add(&model.FieldValue{
+		FieldDef:            mainField, // 使用主字段描述符
+		RawValue:            rawValue,
+		SheetName:           self.Name,
+		FileName:            self.file.FileName,
+		R:                   r,
+		C:                   c,
+		FieldRepeatedCount:  1,
+		StructExpandInfo:    info,
+		StructFieldName:     fieldDef.StructFieldName,
+		StructPath:          fieldDef.StructPath,
+		StructFieldDef:      structFieldDef,
+		StructInstanceIndex: instanceIndex,
 	})
 
 	return lineOp_none

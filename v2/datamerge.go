@@ -36,6 +36,14 @@ func mergeValues(modelData *model.DataModel, tab *model.Table, checker model.Glo
 
 			currFV = fv
 
+			// 处理多列展开的结构体字段
+			if fv.StructExpandInfo != nil {
+				if !structExpandProcessor(checker, record, fv) {
+					goto ErrorStop
+				}
+				continue
+			}
+
 			var sugguestIgnore bool
 			// repeated的, 没有填充的, 直接跳过, 不生成数据
 			if fv.RawValue == "" && fv.FieldDef.Meta.GetString("Default") == "" {

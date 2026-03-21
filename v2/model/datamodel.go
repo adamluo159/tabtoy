@@ -9,13 +9,18 @@ type GlobalChecker interface {
 }
 
 type FieldValue struct {
-	FieldDef           *FieldDescriptor
-	RawValue           string
+	FieldDef            *FieldDescriptor
+	RawValue            string
 	R                  int
 	C                  int
 	SheetName          string
 	FileName           string
 	FieldRepeatedCount int // repeated拆成多列时, 这样重复列的数量
+	StructExpandInfo   interface{} // 多列展开的结构体信息 (*StructExpandInfo)
+	StructFieldName    string      // 多列展开时的结构体字段名
+	StructPath         string      // 多列展开时的结构体路径（字段名）
+	StructFieldDef     *FieldDescriptor // 多列展开时的结构体字段描述符
+	StructInstanceIndex int        // 多列展开时的结构体实例索引
 }
 
 // 对应record

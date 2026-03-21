@@ -33,6 +33,27 @@ type DataHeader struct {
 
 	// 按字段名分组索引字段, 字段不重复
 	HeaderByName map[string]*model.FieldDescriptor
+
+	// 多列展开的结构体字段索引
+	// key: 结构体路径 (如 "Costs")
+	// value: 该结构体的所有列信息
+	structExpandFields map[string]*StructExpandInfo
+}
+
+// StructExpandInfo 多列展开的结构体信息
+type StructExpandInfo struct {
+	StructName string                   // 结构体类型名
+	FieldName  string                   // 主字段名 (如 "Costs")
+	FieldType  *model.Descriptor        // 结构体类型描述符
+	Columns    []*StructExpandColumn    // 按顺序的列信息
+	ColIndex   map[string]int           // 字段名 -> 列索引
+}
+
+// StructExpandColumn 多列展开的单列信息
+type StructExpandColumn struct {
+	StructFieldIndex int    // 在结构体中的字段索引
+	StructFieldName  string // 结构体字段名
+	ColIndex         int    // 在原始表中的列索引
 }
 
 // 检查字段行的长度
@@ -183,6 +204,11 @@ func (self *DataHeader) addHeaderElement(he *DataHeaderElement, localFD *model.F
 			return errorPos
 		}
 
+		// 处理多列展开的结构体字段
+		if def.StructPath != "" {
+			return self.addStructExpandField(def, localFD, globalFD)
+		}
+
 		// 根据字段名查找, 处理repeated字段case
 		exist, ok := self.HeaderByName[def.Name]
 
@@ -209,6 +235,76 @@ func (self *DataHeader) addHeaderElement(he *DataHeaderElement, localFD *model.F
 	}
 
 	// 有注释字段, 但是依然要放到这里来进行索引
+	self.rawHeaderFields = append(self.rawHeaderFields, def)
+
+	return -1
+}
+
+// addStructExpandField 添加多列展开的结构体字段
+func (self *DataHeader) addStructExpandField(def *model.FieldDescriptor, localFD *model.FileDescriptor, globalFD *model.FileDescriptor) int {
+	// 初始化结构体展开信息
+	if self.structExpandFields == nil {
+		self.structExpandFields = make(map[string]*StructExpandInfo)
+	}
+
+	structPath := def.StructPath
+	info, exists := self.structExpandFields[structPath]
+
+	if !exists {
+		// 第一次遇到这个结构体路径，需要创建主字段
+		// 类型信息已经在 def 中解析好了
+		if def.Complex == nil {
+			log.Errorf("struct type not found for multi-column expand: '%s'", structPath)
+			return DataSheetHeader_FieldType
+		}
+
+		// 创建主字段描述符
+		mainField := model.NewFieldDescriptor()
+		mainField.Name = structPath
+		mainField.Type = model.FieldType_Struct
+		mainField.Complex = def.Complex
+		mainField.IsRepeated = true
+		mainField.StructPath = structPath
+
+		// 添加到 headerFields
+		self.HeaderByName[structPath] = mainField
+		self.headerFields = append(self.headerFields, mainField)
+
+		// 创建展开信息
+		info = &StructExpandInfo{
+			StructName: def.Complex.Name,
+			FieldName:  structPath,
+			FieldType:  def.Complex,
+			Columns:    make([]*StructExpandColumn, 0),
+			ColIndex:   make(map[string]int),
+		}
+		self.structExpandFields[structPath] = info
+	}
+
+	// 查找结构体字段索引
+	var structFieldIndex int = -1
+	for i, f := range info.FieldType.Fields {
+		if f.Name == def.StructFieldName {
+			structFieldIndex = i
+			break
+		}
+	}
+
+	if structFieldIndex == -1 {
+		log.Errorf("struct field not found: '%s' in struct '%s'", def.StructFieldName, info.StructName)
+		return DataSheetHeader_FieldName
+	}
+
+	// 记录列信息
+	colInfo := &StructExpandColumn{
+		StructFieldIndex: structFieldIndex,
+		StructFieldName:  def.StructFieldName,
+		ColIndex:         len(self.rawHeaderFields),
+	}
+	info.Columns = append(info.Columns, colInfo)
+	info.ColIndex[def.StructFieldName] = len(info.Columns) - 1
+
+	// 将字段添加到 rawHeaderFields（用于数据读取）
 	self.rawHeaderFields = append(self.rawHeaderFields, def)
 
 	return -1
