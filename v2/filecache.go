@@ -1,7 +1,6 @@
 package v2
 
 import (
-	"github.com/adamluo159/tabtoy/v2/i18n"
 	"github.com/adamluo159/tabtoy/v2/printer"
 	"os"
 	"path/filepath"
@@ -30,8 +29,6 @@ func cacheFile(g *printer.Globals) (fileObjByName map[string]*File) {
 	var fileObjByNameGuard sync.Mutex
 	fileObjByName = map[string]*File{}
 
-	log.Infof("==========%s==========", i18n.String(i18n.Run_CacheFile))
-
 	filelist := getFileList(g)
 
 	var cachedir string
@@ -47,13 +44,9 @@ func cacheFile(g *printer.Globals) (fileObjByName map[string]*File) {
 		fileObjByNameGuard.Lock()
 		fileObjByName[xlsxFileName] = file
 
-		nameOnly := filepath.Base(xlsxFileName)
-
-		if fromCache {
-			log.Infof("%s [Cache]", nameOnly)
-		} else {
+		if !fromCache {
+			nameOnly := filepath.Base(xlsxFileName)
 			g.ModList = append(g.ModList, nameOnly)
-			log.Infof("%s", nameOnly)
 		}
 
 		fileObjByNameGuard.Unlock()

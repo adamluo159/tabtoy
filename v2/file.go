@@ -37,7 +37,9 @@ func (self *File) GlobalFileDesc() *model.FileDescriptor {
 
 }
 
-func (self *File) ExportLocalType(mainFile *File) bool {
+// ExportTypes 只解析类型信息（@Types 表和 StandKey/StandAlias）
+// 第一阶段：收集所有文件的类型定义
+func (self *File) ExportTypes() bool {
 
 	var sheetCount int
 
@@ -70,6 +72,13 @@ func (self *File) ExportLocalType(mainFile *File) bool {
 		return false
 	}
 
+	return true
+}
+
+// ExportHeaders 解析表头信息
+// 第二阶段：在所有类型都收集完毕后解析表头
+func (self *File) ExportHeaders(mainFile *File) bool {
+
 	// 解析表头
 	for _, rawSheet := range self.coreFile.Sheets {
 
@@ -80,8 +89,6 @@ func (self *File) ExportLocalType(mainFile *File) bool {
 			if !dSheet.Valid() {
 				continue
 			}
-
-			log.Infof("            %s", rawSheet.Name)
 
 			dataHeader := newDataHeadSheet()
 
@@ -115,6 +122,16 @@ func (self *File) ExportLocalType(mainFile *File) bool {
 	return true
 }
 
+// ExportLocalType 解析类型和表头（兼容旧接口）
+func (self *File) ExportLocalType(mainFile *File) bool {
+
+	if !self.ExportTypes() {
+		return false
+	}
+
+	return self.ExportHeaders(mainFile)
+}
+
 func (self *File) IsVertical() bool {
 	return self.LocalFD.Pragma.GetBool("Vertical")
 }
@@ -122,8 +139,6 @@ func (self *File) IsVertical() bool {
 func (self *File) ExportData(dataModel *model.DataModel, parentHeader *DataHeader) bool {
 
 	for index, d := range self.dataSheets {
-
-		log.Infof("            %s", d.Name)
 
 		// 多个sheet时, 使用和多文件一样的父级
 		if parentHeader == nil && len(self.dataHeaders) > 1 {

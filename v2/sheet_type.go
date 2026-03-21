@@ -133,6 +133,16 @@ func (self *TypeSheet) parseTable(root *typeModelRoot) bool {
 	return true
 }
 
+func (self *TypeSheet) detectMaxDataCol() int {
+	for col := 0; col < 100; col++ {
+		fieldName := self.GetCellData(DataSheetHeader_FieldName, col)
+		if fieldName == "" {
+			return col
+		}
+	}
+	return 0
+}
+
 func (self *TypeSheet) ParseDataType(localFD *model.FileDescriptor, globalFD *model.FileDescriptor) bool {
 
 	if self.Sheet.MaxCol == 0 {
@@ -145,7 +155,7 @@ func (self *TypeSheet) ParseDataType(localFD *model.FileDescriptor, globalFD *mo
 
 	var keyIdx, codeIdx, aliasIdx, nameIdx int = -1, -1, -1, -1
 	var keyName string
-	maxCol := self.detectMaxTypeCol()
+	maxCol := self.detectMaxDataCol()
 	for idx := 0; idx < maxCol; idx++ {
 		v := self.GetCellData(DataSheetHeader_FieldMeta, idx)
 		if strings.Contains(v, "StandKey") {

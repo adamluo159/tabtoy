@@ -144,6 +144,11 @@ func (self *Globals) AddTypes(localFD *model.FileDescriptor) bool {
 	// 将行定义结构也添加到文件中
 	for _, d := range localFD.Descriptors {
 		if !self.FileDescriptor.Add(d) {
+			// 如果类型已存在，跳过而不是报错
+			// 这是因为两阶段解析可能导致同一类型被多次添加
+			if _, exists := self.FileDescriptor.DescriptorByName[d.Name]; exists {
+				continue
+			}
 			log.Errorf("%s, %s", i18n.String(i18n.Globals_DuplicateTypeName), d.Name)
 			return false
 		}

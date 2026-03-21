@@ -180,14 +180,10 @@ func Run(g *printer.Globals) bool {
 
 	fileObjList := make([]*File, 0)
 
-	log.Infof("==========%s==========", i18n.String(i18n.Run_CollectTypeInfo))
-
-	// 合并类型
+	// 第一阶段：收集所有文件的类型定义
 	for _, in := range g.InputFileList {
 
 		inputFile := in.(string)
-
-		var mainMergeFile *File
 
 		mergeFileList := strings.Split(inputFile, "+")
 
@@ -199,44 +195,62 @@ func Run(g *printer.Globals) bool {
 				return false
 			}
 
-			var mergeTarget string
-			if len(mergeFileList) > 1 {
-				mergeTarget = "--> " + filepath.Base(mergeFileList[0])
-			}
-
-			log.Infoln(filepath.Base(fileName), mergeTarget)
-
 			file.GlobalFD = g.FileDescriptor
 
-			// 电子表格数据导出到Table对象
-			if !file.ExportLocalType(mainMergeFile) {
+			// 只解析类型信息
+			if !file.ExportTypes() {
 				return false
 			}
 
 			// 主文件才写入全局信息
 			if index == 0 {
 
-				// 整合类型信息和数据
+				// 整合类型信息
 				if !g.AddTypes(file.LocalFD) {
 					return false
 				}
 
-				// 只写入主文件的文件列表
-				if file.Header != nil {
+				fileObjList = append(fileObjList, file)
+			}
+		}
+	}
 
-					fileObjList = append(fileObjList, file)
-				}
+	// 第二阶段：解析所有文件的表头（此时所有类型都已收集完毕）
+	for _, in := range g.InputFileList {
 
-				mainMergeFile = file
-			} else {
+		inputFile := in.(string)
 
-				// 添加自文件
-				mainMergeFile.mergeList = append(mainMergeFile.mergeList, file)
+		mergeFileList := strings.Split(inputFile, "+")
 
+		var mainMergeFile *File
+
+		for index, fileName := range mergeFileList {
+
+			file, _ := cachedFile[fileName]
+
+			if file == nil {
+				return false
 			}
 
-		}
+			// 解析表头
+			if !file.ExportHeaders(mainMergeFile) {
+				return false
+			}
 
+			if index == 0 {
+				mainMergeFile = file
+			} else {
+				// 添加子文件
+				mainMergeFile.mergeList = append(mainMergeFile.mergeList, file)
+			}
+		}
+	}
+
+	// 第二阶段后：将行类型结构体添加到全局 FileDescriptor
+	for _, file := range fileObjList {
+		if !g.AddTypes(file.LocalFD) {
+			return false
+		}
 	}
 
 	// 延迟解析map类型

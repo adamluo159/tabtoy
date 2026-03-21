@@ -43,7 +43,7 @@ export interface {{$strus.Name}} {
 
 /** 表格分片数据结构 */
 export interface TablePart {
-{{range $a, $strus := .All}}    {{$strus.Name}}?: {{$strus.TypeString}}[];
+{{range $a, $strus := .All}}    {{$strus.Name}}?: {{$strus.TypeString}};
 {{end}}
 }
 

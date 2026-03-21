@@ -8,7 +8,9 @@ type PrinterContext struct {
 
 func (self *PrinterContext) Start(g *Globals) bool {
 
-	log.Infof("[%s] %s\n", self.name, self.outFile)
+	if self.outFile != "" {
+		log.Infof("[%s] %s", self.name, self.outFile)
+	}
 
 	bf := self.p.Run(g)
 
