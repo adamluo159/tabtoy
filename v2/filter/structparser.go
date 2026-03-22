@@ -90,8 +90,8 @@ func newStructParser(value string) *structParser {
 }
 
 func parseStruct(fd *model.FieldDescriptor, value string, fileD *model.FileDescriptor, node *model.Node) bool {
-	// 检查是否支持简化输入：结构体有2个字段，且第一个字段标记了 SimpleInput:true
-	if len(fd.Complex.Fields) == 2 && fd.Complex.Fields[0].Meta.GetBool("SimpleInput") {
+	// 检查是否支持简化输入：第一个字段标记了 SimpleInput:true
+	if len(fd.Complex.Fields) > 0 && fd.Complex.Fields[0].Meta.GetBool("SimpleInput") {
 		if result := parseSimpleStruct(fd, value, fileD, node); result {
 			return true
 		}
@@ -164,37 +164,32 @@ func parseStruct(fd *model.FieldDescriptor, value string, fileD *model.FileDescr
 }
 
 // parseSimpleStruct 解析简化格式的结构体输入
-// 格式: value1:value2，例如 "金币:2000" 或 "10000:2000"
+// 格式: value1:value2:value3:...，例如 "金币:2000" 或 "10000:2000:描述"
 // 注意：简化格式不能包含空格，否则会被认为是标准格式
+// 支持任意数量的字段，按字段定义顺序对应值
 func parseSimpleStruct(fd *model.FieldDescriptor, value string, fileD *model.FileDescriptor, node *model.Node) bool {
 	// 检查是否包含空格，如果包含空格则不是简化格式
 	if strings.Contains(value, " ") {
 		return false
 	}
 
-	// 查找冒号位置
-	colonIndex := findColonIndex(value)
-	if colonIndex == -1 {
+	// 按冒号分割值
+	values := strings.Split(value, ":")
+	
+	// 检查值的数量是否与字段数量匹配
+	if len(values) != len(fd.Complex.Fields) {
 		return false
 	}
 
-	field1Value := trimString(value[:colonIndex])
-	field2Value := trimString(value[colonIndex+1:])
-
-	// 获取结构体的两个字段
-	field1 := fd.Complex.Fields[0]
-	field2 := fd.Complex.Fields[1]
-
-	// 解析第一个字段
-	fieldNode1 := node.AddKey(field1)
-	if _, ok := ConvertValue(field1, field1Value, fileD, fieldNode1); !ok {
-		return false
-	}
-
-	// 解析第二个字段
-	fieldNode2 := node.AddKey(field2)
-	if _, ok := ConvertValue(field2, field2Value, fileD, fieldNode2); !ok {
-		return false
+	// 按顺序解析每个字段
+	for i, fieldValue := range values {
+		field := fd.Complex.Fields[i]
+		trimmedValue := trimString(fieldValue)
+		
+		fieldNode := node.AddKey(field)
+		if _, ok := ConvertValue(field, trimmedValue, fileD, fieldNode); !ok {
+			return false
+		}
 	}
 
 	return true
