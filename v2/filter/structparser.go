@@ -1,6 +1,8 @@
 package filter
 
 import (
+	"strings"
+
 	"github.com/adamluo159/tabtoy/v2/i18n"
 	"github.com/adamluo159/tabtoy/v2/model"
 	"github.com/davyxu/golexer"
@@ -163,7 +165,13 @@ func parseStruct(fd *model.FieldDescriptor, value string, fileD *model.FileDescr
 
 // parseSimpleStruct 解析简化格式的结构体输入
 // 格式: value1:value2，例如 "金币:2000" 或 "10000:2000"
+// 注意：简化格式不能包含空格，否则会被认为是标准格式
 func parseSimpleStruct(fd *model.FieldDescriptor, value string, fileD *model.FileDescriptor, node *model.Node) bool {
+	// 检查是否包含空格，如果包含空格则不是简化格式
+	if strings.Contains(value, " ") {
+		return false
+	}
+
 	// 查找冒号位置
 	colonIndex := findColonIndex(value)
 	if colonIndex == -1 {

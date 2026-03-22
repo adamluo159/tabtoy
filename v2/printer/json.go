@@ -53,6 +53,10 @@ func printMapJson(bf *Stream, node *model.Node) {
 					bf.Printf(", ")
 					hasWriteField = false
 				}
+				if len(fieldNode.Child) == 0 {
+					log.Errorf("json printer: field node has no child, field: %s", fieldNode.Name)
+					continue
+				}
 				valueNode := fieldNode.Child[0]
 				bf.Printf("\"%s\": %s", fieldNode.Name, valueWrapperJson(fieldNode.Type, valueNode))
 				hasWriteField = true
@@ -143,6 +147,11 @@ func (self *jsonPrinter) Run(g *Globals) *Stream {
 								if hasWriteField && structFieldIndex > 0 {
 									bf.Printf(", ")
 									hasWriteField = false
+								}
+
+								if len(fieldNode.Child) == 0 {
+									log.Errorf("json printer: field node has no child, field: %s", fieldNode.Name)
+									continue
 								}
 
 								valueNode := fieldNode.Child[0]
@@ -280,6 +289,11 @@ func printTableJson(bf *Stream, tab *model.Table) bool {
 						if hasWriteField && structFieldIndex > 0 {
 							bf.Printf(", ")
 							hasWriteField = false
+						}
+
+						if len(fieldNode.Child) == 0 {
+							log.Errorf("json printer: field node has no child, field: %s", fieldNode.Name)
+							continue
 						}
 
 						valueNode := fieldNode.Child[0]

@@ -26,6 +26,11 @@ func coloumnProcessor(file model.GlobalChecker, record *model.Record, fd *model.
 
 			rawSingle := strings.TrimSpace(v)
 
+			// 跳过空值
+			if rawSingle == "" {
+				continue
+			}
+
 			// 结构体要多添加一个节点, 处理repeated 结构体情况
 			if fd.Type == model.FieldType_Struct {
 				node = record.NewNodeByDefine(fd)
@@ -33,10 +38,8 @@ func coloumnProcessor(file model.GlobalChecker, record *model.Record, fd *model.
 				node = node.AddKey(fd)
 			}
 
-			if raw != "" {
-				if !dataProcessor(file, fd, rawSingle, node) {
-					return false
-				}
+			if !dataProcessor(file, fd, rawSingle, node) {
+				return false
 			}
 
 		}
@@ -66,7 +69,7 @@ func coloumnProcessor(file model.GlobalChecker, record *model.Record, fd *model.
 
 // structExpandProcessor 处理多列展开的结构体字段
 func structExpandProcessor(file model.GlobalChecker, record *model.Record, fv *model.FieldValue) bool {
-	info, ok := fv.StructExpandInfo.(*StructExpandInfo)
+	_, ok := fv.StructExpandInfo.(*StructExpandInfo)
 	if !ok {
 		log.Errorf("invalid struct expand info")
 		return false
@@ -74,15 +77,7 @@ func structExpandProcessor(file model.GlobalChecker, record *model.Record, fv *m
 
 	// 获取或创建主字段节点
 	mainNode := record.NewNodeByDefine(fv.FieldDef)
-	mainNode.IsRepeated = true
-
-	// 计算需要创建多少个结构体实例
-	maxInstanceIndex := 0
-	for _, col := range info.Columns {
-		if col.StructFieldIndex > maxInstanceIndex {
-			maxInstanceIndex = col.StructFieldIndex
-		}
-	}
+	mainNode.IsRepeated = fv.FieldDef.IsRepeated // 使用字段定义中的 IsRepeated
 
 	// 确保有足够多的结构体实例节点
 	for len(mainNode.Child) <= fv.StructInstanceIndex {
