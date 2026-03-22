@@ -192,11 +192,11 @@ func (self *DataHeader) AsymmetricEqual(other *DataHeader) (string, bool) {
 
 func (self *DataHeader) addHeaderElement(he *DataHeaderElement, localFD *model.FileDescriptor, globalFD *model.FileDescriptor) int {
 	def := model.NewFieldDescriptor()
-	def.Name = he.FieldName
+	def.Name = he.FieldName // 设置字段名，用于后续处理
 
 	var errorPos int = -1
 
-	// #开头表示注释, 跳过
+	// #开头表示注释, 跳过解析
 	if strings.Index(he.FieldName, "#") != 0 {
 
 		errorPos = he.Parse(def, localFD, globalFD, self.HeaderByName)

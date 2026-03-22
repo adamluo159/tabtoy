@@ -313,6 +313,11 @@ func fieldDefGetter(index int, dataHeader, parentHeader *DataHeader, markField s
 		}
 	}
 
+	// 多列展开格式的字段，直接返回子字段描述符
+	if fieldDef.StructPath != "" && fieldDef.StructFieldName != "" {
+		return fieldDef, true
+	}
+
 	if parentHeader != nil {
 
 		if strings.Index(fieldDef.Name, "#") == 0 {
