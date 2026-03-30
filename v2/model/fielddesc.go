@@ -139,6 +139,11 @@ func (self *FieldDescriptor) String() string {
 	return fmt.Sprintf("name: '%s' %stype: '%s'", self.Name, repString, self.TypeString())
 }
 
+// IsOneToManyIndex 判断是否是一对多索引（只有MakeIndex没有RepeatCheck）
+func (self *FieldDescriptor) IsOneToManyIndex() bool {
+	return self.Meta.GetBool("MakeIndex") && !self.Meta.GetBool("RepeatCheck")
+}
+
 func (self *FieldDescriptor) DefaultValue() string {
 
 	if v := self.Meta.GetString("Default"); v != "" {

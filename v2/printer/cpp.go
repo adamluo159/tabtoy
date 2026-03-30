@@ -61,9 +61,18 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 	{{end}}
 	{{if .IsCombine}}
 		//#region Index code
-	 	{{range $globalIndex}}std::map<{{.IndexType}}, {{.RowType}}> _{{.RowName}}By{{.IndexName}};
-	public:
-		class {{.RowType}}* Get{{.RowName}}By{{.IndexName}}({{.IndexType}} {{.IndexName}}, {{.RowType}}* def = nullptr)
+	 	{{range $globalIndex}}{{if .IsOneToManyIndex}}std::map<{{.IndexType}}, std::vector<{{.RowType}}>> _{{.RowName}}By{{.IndexName}};
+{{else}}std::map<{{.IndexType}}, {{.RowType}}> _{{.RowName}}By{{.IndexName}};
+{{end}}	public:
+		{{if .IsOneToManyIndex}}std::vector<{{.RowType}}>* Get{{.RowName}}By{{.IndexName}}({{.IndexType}} {{.IndexName}})
+        {
+            auto ret = _{{.RowName}}By{{.IndexName}}.find( {{.IndexName}} );
+            if ( ret != _{{.RowName}}By{{.IndexName}}.end() )
+            {
+                return &ret->second;
+            }
+            return nullptr;
+        }{{else}}class {{.RowType}}* Get{{.RowName}}By{{.IndexName}}({{.IndexType}} {{.IndexName}}, {{.RowType}}* def = nullptr)
         {
             auto ret = _{{.RowName}}By{{.IndexName}}.find( {{.IndexName}} );
             if ( ret != _{{.RowName}}By{{.IndexName}}.end() )
@@ -77,7 +86,7 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 			}
 
             return def;
-        }
+        }{{end}}
 		{{end}}
 		{{range $a, $union := $.UnionIndexes}}
 		std::map<std::string, {{$union.RowType}}> _{{$union.RowName}}By{{$union.KeyName}};
@@ -133,7 +142,13 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 			{
 				auto element = ins.{{$row.FieldDescriptor.Name}}_[i];
 				{{range $b, $key := .IndexKeys}}
+				{{if $key.IsOneToManyIndex}}
+				// 一对多索引：允许重复key
+				ins._{{$row.FieldDescriptor.Name}}By{{$key.Name}}[element.{{$key.Name}}_].push_back(element);
+				{{else}}
+				// 一对一索引
 				ins._{{$row.FieldDescriptor.Name}}By{{$key.Name}}.emplace(std::make_pair(element.{{$key.Name}}_, element));
+				{{end}}
 				{{end}}
 			}
 			{{end}}
@@ -197,6 +212,11 @@ func (self cppIndexField) IndexType() string {
 	}
 
 	return "unknown"
+}
+
+// IsOneToManyIndex 判断是否是一对多索引（只有MakeIndex没有RepeatCheck）
+func (self cppIndexField) IsOneToManyIndex() bool {
+	return self.Index.Meta.GetBool("MakeIndex") && !self.Index.Meta.GetBool("RepeatCheck")
 }
 
 type cppUnionIndexField struct {

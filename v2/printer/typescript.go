@@ -59,7 +59,7 @@ export class TableAccessor {
     private data: Table;
 
     {{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
-    private {{$strus.TypeName}}By{{.Name}} = new Map<{{.KeyType}}, {{$strus.TypeName}}>();
+    {{if .IsOneToManyIndex}}private {{$strus.TypeName}}By{{.Name}} = new Map<{{.KeyType}}, {{$strus.TypeName}}[]>();{{else}}private {{$strus.TypeName}}By{{.Name}} = new Map<{{.KeyType}}, {{$strus.TypeName}}>();{{end}}
     {{end}}{{end}}{{/* 联合索引字段定义 - 基于UnionIndex标记 */}}
     {{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
     private {{$strus.TypeName}}By{{range $i, $field := $unionFields}}{{$field.Name}}{{end}} = new Map<string, {{$strus.TypeName}}>();
@@ -126,10 +126,19 @@ export class TableAccessor {
         
         for (const item of this.data.{{$strus.Name}}) {
             {{range .Indexes}}
+            {{if .IsOneToManyIndex}}
+            // 一对多索引：允许重复key
+            if (!this.{{$strus.TypeName}}By{{.Name}}.has(item.{{.Name}})) {
+                this.{{$strus.TypeName}}By{{.Name}}.set(item.{{.Name}}, []);
+            }
+            this.{{$strus.TypeName}}By{{.Name}}.get(item.{{.Name}})!.push(item);
+            {{else}}
+            // 一对一索引：不允许重复key
             if (this.{{$strus.TypeName}}By{{.Name}}.has(item.{{.Name}})) {
                 throw new Error("Duplicate index in {{$strus.TypeName}}By{{.Name}}: " + item.{{.Name}});
             }
             this.{{$strus.TypeName}}By{{.Name}}.set(item.{{.Name}}, item);
+            {{end}}
             {{end}}
             {{/* 联合索引构建 */}}
             {{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
@@ -145,9 +154,15 @@ export class TableAccessor {
 
     {{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
     /** 通过{{.Name}}获取{{$strus.TypeName}} */
+    {{if .IsOneToManyIndex}}
+    get{{$strus.TypeName}}By{{.Name}}(key: {{.KeyType}}): {{$strus.TypeName}}[] {
+        return this.{{$strus.TypeName}}By{{.Name}}.get(key) || [];
+    }
+    {{else}}
     get{{$strus.TypeName}}By{{.Name}}(key: {{.KeyType}}): {{$strus.TypeName}} | undefined {
         return this.{{$strus.TypeName}}By{{.Name}}.get(key);
     }
+    {{end}}
     {{end}}{{end}}{{/* 联合索引访问方法 - 基于UnionIndex标记 */}}
     {{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
     /** 通过{{range $i, $field := $unionFields}}{{if $i}}和{{end}}{{$field.Name}}{{end}}获取{{$strus.TypeName}} */
@@ -200,6 +215,11 @@ func (self *tsFieldModel) KeyType() string {
 	default:
 		return model.FieldTypeToString(self.Type)
 	}
+}
+
+// IsOneToManyIndex 判断是否是一对多索引（只有MakeIndex没有RepeatCheck）
+func (self *tsFieldModel) IsOneToManyIndex() bool {
+	return self.Meta.GetBool("MakeIndex") && !self.Meta.GetBool("RepeatCheck")
 }
 
 func (self *tsFieldModel) ElementTypeString() string {

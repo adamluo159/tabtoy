@@ -43,8 +43,17 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 	{{end}}
 	{{if .IsCombine}}
 		#region Index code
-	 	{{range $globalIndex}}Dictionary<{{.IndexType}}, {{.RowType}}> _{{.RowName}}By{{.IndexName}} = new Dictionary<{{.IndexType}}, {{.RowType}}>();
-        public {{.RowType}} Get{{.RowName}}By{{.IndexName}}({{.IndexType}} {{.IndexName}}, {{.RowType}} def = default({{.RowType}}))
+	 	{{range $globalIndex}}{{if .IsOneToManyIndex}}Dictionary<{{.IndexType}}, List<{{.RowType}}>> _{{.RowName}}By{{.IndexName}} = new Dictionary<{{.IndexType}}, List<{{.RowType}}>>();
+{{else}}Dictionary<{{.IndexType}}, {{.RowType}}> _{{.RowName}}By{{.IndexName}} = new Dictionary<{{.IndexType}}, {{.RowType}}>();
+{{end}}        {{if .IsOneToManyIndex}}public List<{{.RowType}}> Get{{.RowName}}By{{.IndexName}}({{.IndexType}} {{.IndexName}})
+        {
+            List<{{.RowType}}> ret;
+            if ( _{{.RowName}}By{{.IndexName}}.TryGetValue( {{.IndexName}}, out ret ) )
+            {
+                return ret;
+            }
+            return new List<{{.RowType}}>();
+        }{{else}}public {{.RowType}} Get{{.RowName}}By{{.IndexName}}({{.IndexType}} {{.IndexName}}, {{.RowType}} def = default({{.RowType}}))
         {
             {{.RowType}} ret;
             if ( _{{.RowName}}By{{.IndexName}}.TryGetValue( {{.IndexName}}, out ret ) )
@@ -58,7 +67,7 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 			}
 
             return def;
-        }
+        }{{end}}
 		{{end}}
 		{{range $a, $union := .UnionIndexes}}
 		Dictionary<string, {{$union.RowType}}> _{{$union.RowName}}By{{$union.KeyName}} = new Dictionary<string, {{$union.RowType}}>();
@@ -123,12 +132,22 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
              } {{end}}
 
 			{{range $a, $row :=.IndexedFields}}
-			// Build {{$row.FieldDescriptor.Name}} Index
-			for( int i = 0;i< ins.{{$row.FieldDescriptor.Name}}.Count;i++)
+			// Build {{$row.Name}} Index
+			for( int i = 0;i< ins.{{$row.Name}}.Count;i++)
 			{
-				var element = ins.{{$row.FieldDescriptor.Name}}[i];
+				var element = ins.{{$row.Name}}[i];
 				{{range $b, $key := .IndexKeys}}
-				ins._{{$row.FieldDescriptor.Name}}By{{$key.Name}}.Add(element.{{$key.Name}}, element);
+				{{if $key.IsOneToManyIndex}}
+				// 一对多索引：允许重复key
+				if (!ins._{{$row.Name}}By{{$key.Name}}.ContainsKey(element.{{$key.Name}}))
+				{
+					ins._{{$row.Name}}By{{$key.Name}}[element.{{$key.Name}}] = new List<{{$row.RowType}}>();
+				}
+				ins._{{$row.Name}}By{{$key.Name}}[element.{{$key.Name}}].Add(element);
+				{{else}}
+				// 一对一索引
+				ins._{{$row.Name}}By{{$key.Name}}.Add(element.{{$key.Name}}, element);
+				{{end}}
 				{{end}}
 			}
 			{{end}}
@@ -174,6 +193,11 @@ func (self indexField) RowType() string {
 
 func (self indexField) RowName() string {
 	return self.Row.Name
+}
+
+// IsOneToManyIndex 判断是否是一对多索引（只有MakeIndex没有RepeatCheck）
+func (self indexField) IsOneToManyIndex() bool {
+	return self.Index.Meta.GetBool("MakeIndex") && !self.Index.Meta.GetBool("RepeatCheck")
 }
 
 func (self indexField) IndexType() string {
@@ -259,6 +283,13 @@ type csharpField struct {
 	IndexKeys []*model.FieldDescriptor
 
 	parentStruct *structModel
+}
+
+func (self csharpField) RowType() string {
+	if self.Complex != nil {
+		return self.Complex.Name
+	}
+	return "unknown"
 }
 
 func (self csharpField) Alias() string {
