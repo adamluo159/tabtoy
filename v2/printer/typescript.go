@@ -16,8 +16,8 @@ export namespace config {
 
 /** 定义于表格: {{$en.DefinedTable}} */
 export enum {{$en.Name}} {
-{{range .TSFields}}    /** {{.Comment}} */
-    {{.Name}} = {{.Number}},
+{{range .TSFields}}{{if .Comment}}    /** {{.Comment}} */
+{{end}}    {{.Name}} = {{.Number}},
 {{end}}}
 
 export const {{$en.Name}}Mapper = {
@@ -36,8 +36,8 @@ export type {{$en.Name}}Value = typeof {{$en.Name}}Mapper[keyof typeof {{$en.Nam
 
 /** 定义于表格: {{$strus.DefinedTable}} */
 export interface {{$strus.Name}} {
-{{range $b, $fd := $strus.TSFields}}    /** {{.Comment}} */
-    {{.Name}}{{if not .Required}}?{{end}}: {{.TypeString}};
+{{range $b, $fd := $strus.TSFields}}{{if .Comment}}    /** {{.Comment}} */
+{{end}}    {{.Name}}{{if not .Required}}?{{end}}: {{.TypeString}};
 {{end}}}
 {{end}}
 

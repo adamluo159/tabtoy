@@ -27,8 +27,8 @@ import(
 // Defined in table: {{$en.DefinedTable}}
 type {{$en.Name}} int32
 const (	
-{{range .GoFields}}
-	{{.Comment}}
+{{range .GoFields}}{{if .Comment}}
+	{{.Comment}}{{end}}
 	{{$en.Name}}_{{.Name}} {{$en.Name}} = {{.Number}}
 {{end}}
 )
@@ -56,8 +56,8 @@ func (self {{$en.Name}}) String() string {
 {{range $a, $strus := .Structs}} 
 // Defined in table: {{$strus.DefinedTable}}
 type {{$strus.Name}} struct{
-	{{range $b, $fd := $strus.GoFields}} 
-	{{.Comment}}
+	{{range $b, $fd := $strus.GoFields}}{{if .Comment}}
+	{{.Comment}}{{end}}
 	{{if .IsMap}}{{$fd.Name}} {{.MapTypeString}} {{$fd.StructTag}}{{else}}{{$fd.Name}} {{$fd.TypeString}} {{$fd.StructTag}}{{end}}
 	{{end}}
 }
@@ -229,8 +229,9 @@ func (self *{{$.Name}}Table) LoadData(data []byte) error {
 	
 	// 创建所有索引映射
 	{{range $a, $strus := .IndexedStructs}} {{range .Indexes}}
-	newData.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}})
-	{{end}}{{end}}{{/* 联合索引初始化 - 基于UnionIndex标记 */}}
+{{if .IsOneToManyIndex}}	newData.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}][]*{{$strus.TypeName}})
+{{else}}	newData.{{$strus.Name}}By{{.Name}} = make(map[{{.KeyType}}]*{{$strus.TypeName}})
+{{end}}{{end}}{{end}}{{/* 联合索引初始化 - 基于UnionIndex标记 */}}
 	{{range $a, $strus := .IndexedStructs}}{{range $unionName, $unionFields := $strus.Complex.UnionIndexes}}{{if gt (len $unionFields) 1}}
 	newData.{{$strus.Name}}By{{(index $unionFields 0).Name}}{{(index $unionFields 1).Name}} = make(map[struct{ K1 int32; K2 int32 }]*{{$strus.TypeName}})
 	{{end}}{{end}}{{end}}

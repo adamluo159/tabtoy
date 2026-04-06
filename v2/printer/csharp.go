@@ -22,8 +22,8 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 	// Defined in table: {{.DefinedTable}}
 	public enum {{.Name}}
 	{
-	{{range .Fields}}	
-		{{.Comment}}
+	{{range .Fields}}{{if .Comment}}	
+		{{.Comment}}{{end}}
 		{{.FieldDescriptor.Name}} = {{.FieldDescriptor.EnumValue}}, {{.Alias}}
 	{{end}}
 	}
@@ -37,8 +37,8 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 	{{if .IsCombine}}
 		public tabtoy.Logger TableLogger = new tabtoy.Logger();
 	{{end}}
-	{{range .Fields}}	
-		{{.Comment}}
+	{{range .Fields}}{{if .Comment}}	
+		{{.Comment}}{{end}}
 		{{.TypeCode}} {{.Alias}}
 	{{end}}
 	{{if .IsCombine}}

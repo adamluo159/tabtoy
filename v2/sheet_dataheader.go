@@ -265,6 +265,7 @@ func (self *DataHeader) addStructExpandField(def *model.FieldDescriptor, localFD
 		mainField.Complex = def.Complex
 		mainField.IsRepeated = def.IsRepeated // 使用类型定义中的 IsRepeated
 		mainField.StructPath = structPath
+		mainField.Comment = def.Comment // 继承第一个子字段的注释
 
 		// 添加到 headerFields
 		self.HeaderByName[structPath] = mainField

@@ -22,8 +22,8 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 	// Defined in table: {{.DefinedTable}}
 	enum class {{.Name}}
 	{
-	{{range .Fields}}	
-		{{.Comment}}
+	{{range .Fields}}{{if .Comment}}	
+		{{.Comment}}{{end}}
 		{{.FieldDescriptor.Name}} = {{.FieldDescriptor.EnumValue}}, {{.Alias}}
 	{{end}}
 	};
@@ -37,8 +37,8 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 	class {{.Name}}
 	{
 	public:
-	{{range .Fields}}
-		{{.Comment}}
+	{{range .Fields}}{{if .Comment}}
+		{{.Comment}}{{end}}
 		{{.TypeCode}} {{.Alias}}
 	{{end}}
 
@@ -55,8 +55,8 @@ namespace {{.Namespace}}{{$globalIndex:=.Indexes}}{{$verticalFields:=.VerticalFi
 	public:
 		tabtoy::Logger TableLogger;
 	{{end}}
-	{{range .Fields}}	
-		{{.Comment}}
+	{{range .Fields}}{{if .Comment}}	
+		{{.Comment}}{{end}}
 		{{.TypeCode}} {{.Alias}}
 	{{end}}
 	{{if .IsCombine}}
