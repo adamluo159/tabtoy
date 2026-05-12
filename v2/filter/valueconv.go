@@ -20,6 +20,12 @@ func ConvertValue(fd *model.FieldDescriptor, value string, fileD *model.FileDesc
 	case model.FieldType_Int32:
 		_, err := strconv.ParseInt(value, 10, 32)
 		if err != nil {
+			// 尝试在全局枚举中查找对应的别名
+			if enumValue := findEnumValueByAlias(value, fileD); enumValue != "" {
+				ret = enumValue
+				node.AddValue(ret)
+				break
+			}
 			log.Debugln(err)
 			return "", false
 		}
@@ -30,6 +36,12 @@ func ConvertValue(fd *model.FieldDescriptor, value string, fileD *model.FileDesc
 		_, err := strconv.ParseInt(value, 10, 64)
 
 		if err != nil {
+			// 尝试在全局枚举中查找对应的别名
+			if enumValue := findEnumValueByAlias(value, fileD); enumValue != "" {
+				ret = enumValue
+				node.AddValue(ret)
+				break
+			}
 			log.Debugln(err)
 			return "", false
 		}
@@ -39,6 +51,12 @@ func ConvertValue(fd *model.FieldDescriptor, value string, fileD *model.FileDesc
 	case model.FieldType_UInt32:
 		_, err := strconv.ParseUint(value, 10, 32)
 		if err != nil {
+			// 尝试在全局枚举中查找对应的别名
+			if enumValue := findEnumValueByAlias(value, fileD); enumValue != "" {
+				ret = enumValue
+				node.AddValue(ret)
+				break
+			}
 			log.Debugln(err)
 			return "", false
 		}
@@ -48,6 +66,12 @@ func ConvertValue(fd *model.FieldDescriptor, value string, fileD *model.FileDesc
 	case model.FieldType_UInt64:
 		_, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
+			// 尝试在全局枚举中查找对应的别名
+			if enumValue := findEnumValueByAlias(value, fileD); enumValue != "" {
+				ret = enumValue
+				node.AddValue(ret)
+				break
+			}
 			log.Debugln(err)
 			return "", false
 		}
@@ -397,4 +421,29 @@ func trimString(s string) string {
 		end--
 	}
 	return s[start:end]
+}
+
+// findEnumValueByAlias 在全局枚举中查找对应的别名，返回枚举值
+// 当 int32/int64/uint32/uint64 字段的值无法解析为数字时调用
+// 例如：value="金币" 可能对应 ConstItemID 枚举中的值 "10000"
+func findEnumValueByAlias(value string, fileD *model.FileDescriptor) string {
+	if fileD == nil {
+		return ""
+	}
+
+	// 遍历所有描述符，查找枚举类型
+	for _, desc := range fileD.Descriptors {
+		if desc.Kind != model.DescriptorKind_Enum {
+			continue
+		}
+
+		// 在枚举中查找匹配的字段（按名称或别名）
+		field := desc.FieldByValueAndMeta(value)
+		if field != nil {
+			// 返回枚举值（数字字符串）
+			return fmt.Sprintf("%d", field.EnumValue)
+		}
+	}
+
+	return ""
 }

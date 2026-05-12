@@ -91,7 +91,8 @@ func newStructParser(value string) *structParser {
 
 func parseStruct(fd *model.FieldDescriptor, value string, fileD *model.FileDescriptor, node *model.Node) bool {
 	// 检查是否支持简化输入：第一个字段标记了 SimpleInput:true
-	if len(fd.Complex.Fields) > 0 && fd.Complex.Fields[0].Meta.GetBool("SimpleInput") {
+	// 或者尝试自动检测简化格式（值数量与字段数量匹配且不包含空格）
+	if len(fd.Complex.Fields) > 0 {
 		if result := parseSimpleStruct(fd, value, fileD, node); result {
 			return true
 		}

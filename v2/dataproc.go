@@ -12,6 +12,11 @@ func coloumnProcessor(file model.GlobalChecker, record *model.Record, fd *model.
 
 	spliter := fd.ListSpliter()
 
+	// 对于 repeated struct 类型，如果没有设置 ListSpliter，自动使用 | 作为分隔符
+	if fd.IsRepeated && spliter == "" && fd.Type == model.FieldType_Struct {
+		spliter = "|"
+	}
+
 	if fd.IsRepeated && spliter != "" {
 
 		valueList := strings.Split(raw, spliter)
