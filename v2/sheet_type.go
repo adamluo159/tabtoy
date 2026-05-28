@@ -36,6 +36,8 @@ var typeHeader = map[string]int{
 
 type TypeSheet struct {
 	*Sheet
+	root    *typeModelRoot
+	localFD *model.FileDescriptor
 }
 
 func (self *TypeSheet) detectMaxTypeCol() int {
@@ -219,6 +221,8 @@ func (self *TypeSheet) ParseDataType(localFD *model.FileDescriptor, globalFD *mo
 func (self *TypeSheet) Parse(localFD *model.FileDescriptor, globalFD *model.FileDescriptor) bool {
 
 	var root typeModelRoot
+	self.root = &root
+	self.localFD = localFD
 
 	if !self.parseTable(&root) {
 		goto ErrorStop
@@ -237,12 +241,6 @@ func (self *TypeSheet) Parse(localFD *model.FileDescriptor, globalFD *model.File
 		goto ErrorStop
 	}
 
-	if !root.SolveUnknownModel(localFD, globalFD) {
-		self.Row = root.Row
-		self.Column = root.Col
-		goto ErrorStop
-	}
-
 	return self.checkProtobufCompatibility(localFD)
 
 ErrorStop:
@@ -251,6 +249,22 @@ ErrorStop:
 
 	log.Errorf("%s|%s(%s)", self.file.FileName, self.Name, util.R1C1ToA1(r, c))
 	return false
+}
+
+func (self *TypeSheet) SolveUnknownTypes(globalFD *model.FileDescriptor) bool {
+	if self.root == nil {
+		return true
+	}
+
+	if !self.root.SolveUnknownModel(self.localFD, globalFD) {
+		self.Row = self.root.Row
+		self.Column = self.root.Col
+		r, c := self.GetRC()
+		log.Errorf("%s|%s(%s)", self.file.FileName, self.Name, util.R1C1ToA1(r, c))
+		return false
+	}
+
+	return true
 }
 
 // 检查protobuf兼容性

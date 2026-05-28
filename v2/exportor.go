@@ -215,6 +215,18 @@ func Run(g *printer.Globals) bool {
 		}
 	}
 
+	// 第一阶段后：解决所有文件的未知类型（此时所有类型都已收集完毕）
+	for _, file := range fileObjList {
+		if !file.SolveUnknownTypes() {
+			return false
+		}
+		for _, mergeFile := range file.mergeList {
+			if !mergeFile.SolveUnknownTypes() {
+				return false
+			}
+		}
+	}
+
 	// 第二阶段：解析所有文件的表头（此时所有类型都已收集完毕）
 	for _, in := range g.InputFileList {
 

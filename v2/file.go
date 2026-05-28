@@ -26,6 +26,7 @@ type File struct {
 	dataSheets  []*DataSheet
 	Header      *DataHeader
 	dataHeaders []*DataHeader
+	typeSheet   *TypeSheet
 
 	valueRepByKey map[valueRepeatData]bool // 检查单元格值重复map
 
@@ -44,7 +45,6 @@ func (self *File) ExportTypes() bool {
 	var sheetCount int
 
 	var typeSheet *TypeSheet
-	// 解析类型表
 	for _, rawSheet := range self.coreFile.Sheets {
 
 		if isTypeSheet(rawSheet.Name) {
@@ -55,11 +55,11 @@ func (self *File) ExportTypes() bool {
 
 			typeSheet = newTypeSheet(NewSheet(self, rawSheet))
 
-			// 从cell添加类型
 			if !typeSheet.Parse(self.LocalFD, self.GlobalFD) {
 				return false
 			}
 
+			self.typeSheet = typeSheet
 			sheetCount++
 
 		} else {
@@ -73,6 +73,13 @@ func (self *File) ExportTypes() bool {
 	}
 
 	return true
+}
+
+func (self *File) SolveUnknownTypes() bool {
+	if self.typeSheet == nil {
+		return true
+	}
+	return self.typeSheet.SolveUnknownTypes(self.GlobalFD)
 }
 
 // ExportHeaders 解析表头信息
